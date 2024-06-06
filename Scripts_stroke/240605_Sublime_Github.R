@@ -3,10 +3,17 @@
 if (requireNamespace("thematic")) 
   thematic::thematic_rmd(font = "auto")
 
-setwd("~/OneDrive - Lund University/Dokument/Projects/Monocytes Stroke/Data Analysis/240530_LinReg_AddControls")
-getwd()
-rm(list=ls())
+today <- Sys.Date()
 
+output_location <- paste(today,"_Stroke_Results", sep="")
+
+setwd("/Users/ju5263ta/Github/Monocytes/Data/")
+if (!dir.exists(output_location)) {
+    dir.create(output_location, recursive = TRUE)
+  }
+getwd ()
+
+rm(list=ls())
 
 library(ggplot2)
 library(tidyverse)
@@ -82,6 +89,8 @@ calculate_vif <- function(model) {
 
 ### *Data* ---------------------------------------------------------------------
 ## Loading of the Data
+setwd("/Users/ju5263ta/Github/Monocytes/Data/Fluidigm")
+getwd ()
 # make sure that before you check the files, that not an empty column has been added to the end of the file, remove and export as .csv otherwise.
 files <- system( "ls *.csv", intern=T)
 
@@ -285,8 +294,12 @@ dataCTR <- dataTRIM[grep("^Ctr", dataTRIM$SampleID), ]
 
 dataEXPAND <- rbind(dataEXPAND, dataCTR)
 
-## add Metadata --------------------------------------------------------
+## load all Metadata ---------------------------------------------------------------
+setwd("/Users/ju5263ta/Github/Monocytes/Data/Metadata")
+getwd ()
 metadataP <- read_excel("Metadata_PatientID.xlsx")
+Metadata_GeneID <- read_excel("Metadata_GeneID.xlsx")
+Plate_info <- read_excel("240410_PlateID.xlsx")
 
 # Combine the data frames based on common values in the "id" column
 # --> here i loose all the test because they are not in the metadata
@@ -299,7 +312,6 @@ dataAll$Sex[grep("F",dataAll$Sex)]  <- "Female"
 dataAll <- dataAll %>% filter(!is.na(Age), !is.na(SampleID), !is.na(Category), !is.na(Sex))
 
 # *Imputation of missing data* ---------------------------------------------------------------------
-Multiple Imputation (MI) methods, such as those implemented in the mice package, are generally more powerful than single imputation methods like mean imputation.
 
 ## Failed Genes --------------------------------------------------------
 fails <- dataAll %>%
@@ -315,9 +327,6 @@ fails <- dataAll %>%
 failed_genes <- fails %>% filter(Per_Above_35_CT >= 96) %>%select(Gene)
 wrong_threshold <- c("CLEC7A", "S100A8", "S100A9")
 exclude_genes  <- unique(c("Xeno",failed_genes$Gene, wrong_threshold))
-
-#write.csv(failed_genes, "Failed_Genes.cvs", row.names = FALSE)
-write_xlsx(fails, "Fail_rates.xlsx")
 
 #Make data frame for the imputation with only working genes
 dataWORKING <- dataAll %>%  filter(!Gene %in% exclude_genes)
@@ -418,9 +427,6 @@ dataFINAL$rE_Value_sd <- ifelse(dataFINAL$CT_Mean>=35, yes=0, no=dataFINAL$rE_Va
 dataFINAL$rE_Value <- ifelse(dataFINAL$dCT_Mean>=35, yes=0, no=dataFINAL$rE_Value) 
 dataFINAL$rE_Value_sd <-ifelse(dataFINAL$dCT_Mean>=35, yes=0, no=dataFINAL$rE_Value) 
 
-file_name <- paste("dataFINAL.xlsx", sep = "")
-write_xlsx(dataFINAL, file_name)
-
 
 ## Effect of different variables ---------------------------------------------------------------------
 # not needed, just for QC
@@ -447,36 +453,6 @@ write_xlsx(dataFINAL, file_name)
 #summary(res2, conf.int=TRUE)
 #summary(res1, conf.int=TRUE)
 
-## Check imputation & Questions --------------------------------------------------
-
-# Plots for imputation--------------------------------------------------
-# Check convergence
-#plot(finaldata)
-# kernel density plots for imputed values 
-#    densityplot(data_imputed)
-
-### which one to look at, shows the spread of the imputated data
-densityplot(finaldata, data=~dCT_Value | Subpopulation)
-densityplot(data_imputed, data=~dCT_Value | Sex)
-
-#choose imputation number 1
-# better: choose the mean from 20 impoutations
-check1<-lm(dCT_Mean~Gene+Age+Sex+Subpopulation+SampleID, data=finaldata, subset=.imp==1)
-#plot(check1)
-dataFINAL_imp <- filter(finaldata, .imp==1)
-
-## different approach but oly works on the rE!
-dataFINAL$rE_Value <- 2^((-1)*dataFINAL$dCT_Mean)
-# with the original  data but without individuals!
-glm(rE_Value~Gene+Age+Sex+Subpopulation, family = "gaussian", data = dataFINAL) %>% tab_model()
-
-# Questions:
-# how is the summary interpretated? estimate? SD error? p value?
-# especially in this one! what does it mean for the one thats not shown of the levels in factors?
-# lm(dCT_Mean~Gene+Age+Sex+Subpopulation, data = dataFINAL) %>% sjPlot::tab_model()
-# Gene vs Gene1
-# exclude failed genes / neg. controls?
-
 ## run this instead of imputation --------------------------------------------------
 #dataFINAL <- dataAll 
 #dataFINAL$rE_Value <- 2^((-1)*dataFINAL$dCT_Value)
@@ -485,10 +461,9 @@ glm(rE_Value~Gene+Age+Sex+Subpopulation, family = "gaussian", data = dataFINAL) 
 
 
 
-# *FACS & Gene Metadata ----------------------------------------------------------------------------------------------------
+# *FACS data* ----------------------------------------------------------------------------------------------------
 
 ## Gene Metadata & other edits:
-Metadata_GeneID <- read_excel("Metadata_GeneID.xlsx")
 Gene_Info <- data.frame(Gene = Metadata_GeneID$Gene, GeneID = Metadata_GeneID$GeneID, Gene_Group = Metadata_GeneID$Gene_Group)
 
 dataFINAL <- merge(dataFINAL, Gene_Info, by = "Gene")
@@ -498,6 +473,9 @@ patients <- unique(dataFINAL$SampleID)
 no_patients <- length(patients)
 
 ## import FACS data ----------------------------------------------------------------------------------------------------
+setwd("/Users/ju5263ta/Github/Monocytes/Data/FACS")
+getwd ()
+
 FACSdata <- read_excel("240410_FACSdata_StrokeControl.xls")
 FACSdata <- as.data.frame(FACSdata, col_types = c("text", 
     "text", "numeric", "text", "numeric", 
@@ -525,9 +503,7 @@ FACS_info_rows$PlateID <- paste(FACS_info_rows$Plate,FACS_info_rows$`Sorted Samp
 #write_xlsx(FACS_info_rows, "FACS_info_rows.xlsx")
 FACSdata <- cbind(FACSdata, FACS_info_rows)
 
-# get PlateID to match the right sample with the right data
-Plate_info <- read_excel("240410_PlateID.xlsx")
-
+# Match PlateID with the right sample with the right data
 FACSdata <- merge(FACSdata, Plate_info, by = "PlateID")
 # remove the 5th timepoint
 FACSdata <- FACSdata %>% filter(Timepoint != "TP5")
@@ -551,6 +527,16 @@ dataFINALmean <- dataFINAL %>%
                   mean_rE = mean(rE_Value), sd_rE = sd(rE_Value)
                   )%>%
   ungroup()
+
+## Change working directory so that everything is getting saved in the right place ----------------
+today <- Sys.Date()
+output_location <- paste(today,"_Stroke_Results", sep="")
+setwd(paste("/Users/ju5263ta/Github/Monocytes/Data/",output_location, "/",sep=""))
+getwd()
+
+write_xlsx(fails, "Fail_rates.xlsx")
+write_xlsx(dataFINAL, "dataFINAL.xlsx")
+
 
 # *ANOVA* fix the p value ----------------------------------------------------------------------------------------------------
 

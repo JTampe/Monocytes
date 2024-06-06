@@ -1,8 +1,13 @@
-# Start the R
+# Run the R scripts
 
-In the Data folder and copy the script lines into that interface.
+set up the Terminal:
+```
+cd Github/Monocytes
+git remote set-url origin git@github.com:JTampe/Monocytes.git
 
+```
 
+Start R in the Data folder:
 ```
 cd Data 
 R
