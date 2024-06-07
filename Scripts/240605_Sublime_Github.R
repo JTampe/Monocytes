@@ -767,7 +767,7 @@ ggboxplot(female,
           title = titel,
           add = "jitter", 
           legend = "none", 
-          ylab = paste(gene_means_list[j], "expression relative to B2M"), 
+          ylab = paste(gene, "expression relative to B2M"), 
           width = 0.6, 
           add.params = list(size = 1, alpha = 0.5)) +  
      geom_hline(yintercept = median_TP0, linetype = 2) + 

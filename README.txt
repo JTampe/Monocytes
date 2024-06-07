@@ -10,7 +10,7 @@ system( "ls" )
 ```
 Run Script for the Stroke analysis directly in R:
 ```
-system("Rscript /Users/ju5263ta/Github/Monocytes/Scripts_stroke/240605_Sublime_Github.R")
+system("Rscript /Users/ju5263ta/Github/Monocytes/Scripts/240605_Sublime_Github.R")
 ```
 
 All output will be saved in a folder: TODAYS-DATE_Stroke_Results
