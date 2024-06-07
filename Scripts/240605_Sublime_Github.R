@@ -92,7 +92,7 @@ calculate_vif <- function(model) {
 setwd("/Users/ju5263ta/Github/Monocytes/Data/Fluidigm")
 getwd ()
 # make sure that before you check the files, that not an empty column has been added to the end of the file, remove and export as .csv otherwise.
-files <- system( "ls *.csv", intern=T)
+files <- system( "ls *B2M.csv", intern=T)
 
 # if you just have one data set:
 i=1
