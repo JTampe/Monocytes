@@ -892,7 +892,7 @@ write.csv(Age_correlation_Sex_rE, file_name, row.names = FALSE)
 file_name_outliers <- paste("Statistics_LinReg/", "Pearson's Correlation_Sex_Outliers.csv", sep = "")
 write.csv(outliers_Sex_rE, file_name_outliers, row.names = FALSE)
 
-## Age Corr. w/o Outliners-----------------------------------------
+## Age Corr. wo Outliners-----------------------------------------
 createFolder("Statistics_LinReg_woOutliers")
 
 # Pearson's Correlation uses linear relationship to correlate the data
@@ -948,7 +948,7 @@ for (i in 2:length(gene_list)) {
 file_name <- paste("Statistics_LinReg_woOutliers/", "Pearson's Correlation_Age_rE_woOutliers.csv", sep = "")
 write.csv(Age_correlation_rE_woOutliers, file_name, row.names = FALSE)
 
-## Sex Corr. w/o Outliners-----------------------------------------
+## Sex Corr. wo Outliners-----------------------------------------
 createFolder("Statistics_LinReg_woOutliers")
 
 # Pearson's Correlation uses linear relationship to correlate the data
@@ -1004,7 +1004,7 @@ for (i in 2:length(gene_list)) {
 file_name <- paste("Statistics_LinReg_woOutliers/", "Pearson's Correlation_Age_Sex_rE_woOutliers.csv", sep = "")
 write.csv(Age_correlation_Sex_rE_woOutliers, file_name, row.names = FALSE)
 
-## FACS Corr. w/o Outliers-----------------------------------------
+## FACS Corr. wo Outliers-----------------------------------------
 createFolder("Plots_LinReg_FACS_woOutliers")
 
 Age_correlation_FACS_woOutliers <- data.frame(Cells = character(), Sex = character(), N = numeric(), p.value = numeric(), Coefficient = numeric(), Down95= numeric(), Up95= numeric())
@@ -1206,7 +1206,7 @@ ggplot(data =  df_filtered, aes(x = Age, y = rE_Value, colour = Sex)) +
 #Age_correlation_rE <- Age_correlation_rE_woOutliers
 #Age_correlation_Sex_rE <- Age_correlation_Sex_rE_woOutliers
 
-## Plot all linear regressions w/o Outliers-----------------------------------------
+## Plot all linear regressions wo Outliers-----------------------------------------
 new_folder_name <- "Plot_LinReg_woOutliers"
 createFolder(new_folder_name)
 
@@ -1332,9 +1332,6 @@ file_name <- paste("Statistics_LinReg/", "Pearsson's Matrix_Age_Sex_rE_woOutlier
 write.csv(Pearsson_Sex_Matrix_woOutliers, file_name)
 
 Age_correlation_rE_woOutliers$Sex <- "All"
-All_Age_Pearson_rE <- rbind(Age_correlation_Sex_rE, Age_correlation_rE)
-file_name <- paste("Statistics_LinReg/", "Pearson's Correlation_Age_All_rE.csv", sep = "")
-write.csv(All_Age_Pearson_rE, file_name)
 All_Age_Pearson_rE_woOutliers <- rbind(Age_correlation_Sex_rE_woOutliers, Age_correlation_rE_woOutliers)
 file_name <- paste("Statistics_LinReg/", "Pearson's Correlation_Age_All_rE_woOutliers.csv", sep = "")
 write.csv(All_Age_Pearson_rE_woOutliers, file_name)
@@ -1360,9 +1357,9 @@ Age_sigGenes_Pearson <- All_Age_Pearson_rE %>% filter(All_Age_Pearson_rE$p.value
 file_name <- paste("Statistics_LinReg/", "Pearsson's_All_significant_rE.csv", sep = "")
 write.csv(Age_sigGenes_Pearson, file_name)
 
-Age_sigGenes_Pearson_woOutliners <- All_Age_Pearson_rE_woOutliners %>% filter(All_Age_Pearson_rE_woOutliners$p.value <0.05)
-file_name <- paste("Statistics_LinReg/", "Pearsson's_All_significant_rE_woOutliners.csv", sep = "")
-write.csv(Age_sigGenes_Pearson_woOutliners, file_name)
+Age_sigGenes_Pearson_woOutliers <- All_Age_Pearson_rE_woOutliers %>% filter(All_Age_Pearson_rE_woOutliers$p.value <0.05)
+file_name <- paste("Statistics_LinReg/", "Pearsson's_All_significant_rE_woOutliers.csv", sep = "")
+write.csv(Age_sigGenes_Pearson_woOutliers, file_name)
 
 ## Age significant Genes ----------------------------------------
 i <- 1
@@ -1437,18 +1434,18 @@ for (i in 1:j) {
     }
 }
 
-## Extract Data of Age significant Genes (w/o Outliners) -----------------------------------------
+## Extract Data of Age significant Genes (wo Outliners) -----------------------------------------
 i <- 1
-j <- length(Age_sigGenes_Pearson_woOutliners)
+j <- length(Age_sigGenes_Pearson_woOutliers)
 for (i in 2:j) {
-    sub <- Age_sigGenes_Pearson_woOutliners$Subpopulation[i]
+    sub <- Age_sigGenes_Pearson_woOutliers$Subpopulation[i]
     df <- get(Age_sigGenes_Pearson$Gene[i])
     df <- filter(df, Subpopulation == sub)
      }
 
 ## LinearRegression (only significant Gene, wo Outliers)-----------------------------------------
 df <- filter(df, !is.na(Age_Group), !is.na(rE_Value), !is.na(Sex))
-createFolder("Significant Genes relating to Age (w/o Outliers)")
+createFolder("Significant Genes relating to Age (wo Outliers)")
 
 i <- 1
 j <- length(Age_sigGenes_Pearson$Group)
@@ -1460,7 +1457,7 @@ for (i in 1:j) {
     s <- Age_sigGenes_Pearson$Sex[i]
     if (s=="All"){
         titel <- paste(sig, " expression in ", sub, " monocytes (LinReg, rE, combined)", sep="")
-        file_name <- paste("Significant Genes relating to Age (w/o Outliers)/",titel, ".png", sep = "")
+        file_name <- paste("Significant Genes relating to Age (wo Outliers)/",titel, ".png", sep = "")
         ggplot(data = df, aes(x = Age, y = rE_Value)) +
             geom_smooth(method = "glm", color = "black") +
             geom_point(aes(color = Sex), size = 2) +
@@ -1485,7 +1482,7 @@ for (i in 1:j) {
     
     else {
         titel <- paste(sig, " expression in ",sub," monocytes (",s,") (LinReg, rE)", sep="")
-        file_name <- paste("Significant Genes relating to Age (w/o Outliers)/",titel, ".png", sep = "")
+        file_name <- paste("Significant Genes relating to Age (wo Outliers)/",titel, ".png", sep = "")
         #png(filename=file_name, height=750, width=750)
         ggplot(data = df, aes(x = Age, y = rE_Value, colour = Sex)) + 
             geom_smooth(method = glm) + 

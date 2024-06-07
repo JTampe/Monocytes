@@ -1209,8 +1209,8 @@ ggplot(data =  df_filtered, aes(x = Age, y = rE_Value, colour = Sex)) +
 }
 
 ## Replace the variables with data excluding the Outliers-----------------------------------------
-Age_correlation_rE <- Age_correlation_rE_woOutliers
-Age_correlation_Sex_rE <- Age_correlation_Sex_rE_woOutliers
+#Age_correlation_rE <- Age_correlation_rE_woOutliers
+#Age_correlation_Sex_rE <- Age_correlation_Sex_rE_woOutliers
 
 ## Plot all linear regressions w/o Outliers-----------------------------------------
 new_folder_name <- "Plot_LinReg_woOutliers"
@@ -1282,11 +1282,48 @@ ggplot(data =  df_filtered_sex, aes(x = Age, y = rE_Value, colour = Sex)) +
   i = i + 1
 }
 
-## Matrix / Heatmap of Coefficient (not separated by Sex)-----------------------------------------
-Pearsson_Matrix <- acast(Age_correlation_rE_woOutliers, Gene  ~ Subpopulation,value.var = "Coefficient" )
+## Matrix / Heatmap of Coefficient 
+#(not separated by Sex)-----------------------------------------
+Pearsson_Matrix <- acast(Age_correlation_rE, Gene  ~ Subpopulation,value.var = "Coefficient" )
 
 file_name <- paste("Statistics_LinReg/", "Pearsson's Matrix_Age_rE.csv", sep = "")
 write.csv(Pearsson_Matrix, file_name)
+
+Age_correlation_Sex_rE$Group <- paste(Age_correlation_Sex_rE$Subpopulation, Age_correlation_Sex_rE$Sex, sep="_")
+Age_correlation_rE$Group <- paste(Age_correlation_rE$Subpopulation, Age_correlation_rE$Sex, sep="_")
+Age_correlation_Sex_rE$Gene_Order <- paste(Age_correlation_Sex_rE$GeneID, Age_correlation_Sex_rE$Gene, sep="_")
+Age_correlation_rE$Gene_Order <- paste(Age_correlation_rE$GeneID, Age_correlation_rE$Gene, sep="_")
+Age_correlation_Sex_rE$Info <- paste(Age_correlation_Sex_rE$Sex, Age_correlation_Sex_rE$Subpopulation, sep="_")
+Age_correlation_rE$Info <- paste(Age_correlation_rE$Sex, Age_correlation_rE$Subpopulation, sep="_")
+
+Pearsson_Sex_Matrix <- acast(Age_correlation_Sex_rE, Gene  ~ Group,value.var = "Coefficient" )
+
+file_name <- paste("Statistics_LinReg/", "Pearsson's Matrix_Age_Sex_rE.csv", sep = "")
+write.csv(Pearsson_Sex_Matrix, file_name)
+
+Age_correlation_rE$Sex <- "All"
+All_Age_Pearson_rE <- rbind(Age_correlation_Sex_rE, Age_correlation_rE)
+file_name <- paste("Statistics_LinReg/", "Pearson's Correlation_Age_All_rE.csv", sep = "")
+write.csv(All_Age_Pearson_rE, file_name)
+
+Age_correlation_rE_Matrix <- dcast(Age_correlation_rE, Gene_Order ~ Subpopulation, value.var = "Coefficient")
+Age_correlation_Sex_rE_Matrix <- dcast(Age_correlation_Sex_rE, Gene_Order ~ Info, value.var = "Coefficient")
+
+write.table(Age_correlation_rE_Matrix, "Statistics_LinReg/Age_Pearson-Coefficient_rE_Matrix.txt", sep="\t", row.names=FALSE)
+write.table(Age_correlation_Sex_rE_Matrix, "Statistics_LinReg/Age_Pearson-Coefficient_Sex_rE_Matrix.txt", sep="\t", row.names=FALSE)
+
+Age_correlation_rE_Matrix_est <- dcast(Age_correlation_rE, Gene_Order ~ Subpopulation, value.var = "Estimate")
+Age_correlation_Sex_rE_Matrix_est <- dcast(Age_correlation_Sex_rE, Gene_Order ~ Info, value.var = "Estimate")
+
+write.table(Age_correlation_rE_Matrix_est, "Statistics_LinReg/Age_Pearson-Estimate_rE_Matrix.txt", sep="\t", row.names=FALSE)
+write.table(Age_correlation_Sex_rE_Matrix_est, "Statistics_LinReg/Age_Pearson-Estimate_Sex_rE_Matrix.txt", sep="\t", row.names=FALSE)
+
+## Withoug outliers ----------------------------------------------------------
+
+Pearsson_Matrix_woOutliers <- acast(Age_correlation_rE_woOutliers, Gene  ~ Subpopulation,value.var = "Coefficient" )
+
+file_name <- paste("Statistics_LinReg/", "Pearsson's Matrix_Age_rE_woOutliers.csv", sep = "")
+write.csv(Pearsson_Matrix_woOutliers, file_name)
 
 Age_correlation_Sex_rE_woOutliers$Group <- paste(Age_correlation_Sex_rE_woOutliers$Subpopulation, Age_correlation_Sex_rE_woOutliers$Sex, sep="_")
 Age_correlation_rE_woOutliers$Group <- paste(Age_correlation_rE_woOutliers$Subpopulation, Age_correlation_rE_woOutliers$Sex, sep="_")
@@ -1301,9 +1338,9 @@ file_name <- paste("Statistics_LinReg/", "Pearsson's Matrix_Age_Sex_rE_woOutlier
 write.csv(Pearsson_Sex_Matrix_woOutliers, file_name)
 
 Age_correlation_rE_woOutliers$Sex <- "All"
-All_Age_Pearson_rE <- rbind(Age_correlation_Sex_rE_woOutliers, Age_correlation_rE_woOutliers)
+All_Age_Pearson_rE_woOutliers <- rbind(Age_correlation_Sex_rE_woOutliers, Age_correlation_rE_woOutliers)
 file_name <- paste("Statistics_LinReg/", "Pearson's Correlation_Age_All_rE_woOutliers.csv", sep = "")
-write.csv(All_Age_Pearson_rE, file_name)
+write.csv(All_Age_Pearson_rE_woOutliers, file_name)
 
 Age_correlation_rE_Matrix <- dcast(Age_correlation_rE_woOutliers, Gene_Order ~ Subpopulation, value.var = "Coefficient")
 Age_correlation_Sex_rE_Matrix <- dcast(Age_correlation_Sex_rE_woOutliers, Gene_Order ~ Info, value.var = "Coefficient")
@@ -1321,22 +1358,27 @@ write.table(Age_correlation_Sex_rE_Matrix_est, "Statistics_LinReg/Age_Pearson-Es
 ## Extract significant Data (rE):-----------------------------------------
 
 # Pearson Correlation:
+# Pearson Correlation:
 Age_sigGenes_Pearson <- All_Age_Pearson_rE %>% filter(All_Age_Pearson_rE$p.value <0.05)
-file_name <- paste("Statistics_LinReg/", "Pearsson's_All_significant_rE_woOutliners.csv", sep = "")
+file_name <- paste("Statistics_LinReg/", "Pearsson's_All_significant_rE.csv", sep = "")
 write.csv(Age_sigGenes_Pearson, file_name)
 
-## Extract Data of Age significant Genes-----------------------------------------
+Age_sigGenes_Pearson_woOutliers <- All_Age_Pearson_rE_woOutliers %>% filter(All_Age_Pearson_rE_woOutliers$p.value <0.05)
+file_name <- paste("Statistics_LinReg/", "Pearsson's_All_significant_rE_woOutliers.csv", sep = "")
+write.csv(Age_sigGenes_Pearson_woOutliers, file_name)
+
+## Age significant Genes ----------------------------------------
 i <- 1
 j <- length(Age_sigGenes_Pearson)
 for (i in 2:j) {
     sub <- Age_sigGenes_Pearson$Subpopulation[i]
     df <- get(Age_sigGenes_Pearson$Gene[i])
     df <- filter(df, Subpopulation == sub)
-     }
+}
 
 df <- filter(df, !is.na(Age_Group), !is.na(rE_Value), !is.na(Sex))
 
-## LinearRegression (only significant Gene)-----------------------------------------
+## LinearRegression (only significant Gene)
 createFolder("Significant Genes relating to Age")
 
 i <- 1
@@ -1349,56 +1391,124 @@ for (i in 1:j) {
     s <- Age_sigGenes_Pearson$Sex[i]
     if (s=="All"){
         titel <- paste(sig, " expression in ", sub, " monocytes (LinReg, rE, combined)", sep="")
-        #remove Age correlation outliers
-    df <- anti_join(df, outliers_Age_rE, by = c("SampleID", "Gene", "Subpopulation", "rE_Value"))
-file_name <- paste("Significant Genes relating to Age/",titel, ".png", sep = "")
-    ggplot(data = df, aes(x = Age, y = rE_Value)) +
-  geom_smooth(method = "glm", color = "black") +
-  geom_point(aes(color = Sex), size = 2) +
-  ggtitle(titel) +
-  xlab("Age") +
-  ylab("Gene expression relative to B2M") +
-  facet_wrap(~Subpopulation, ncol = 2) +
-  scale_color_manual(values = c("Male" = "#A67C00", "Female" = "#1D04C2")) +
-  theme(text = element_text(size=14)) +
-    theme(
-        panel.background = element_rect(fill = "white", color = "black"),
-        plot.background = element_rect(fill = "white", color = "black"),
-        text = element_text(color = "black"),
-        panel.grid.major = element_line(color = "gray", size = 0.2),
-        panel.grid.minor = element_blank(),
-        panel.grid.major.x = element_blank()
-    )
-    ggsave(filename=file_name)
-    #dev.off()
-    i = i +1
+        file_name <- paste("Significant Genes relating to Age/",titel, ".png", sep = "")
+        ggplot(data = df, aes(x = Age, y = rE_Value)) +
+            geom_smooth(method = "glm", color = "black") +
+            geom_point(aes(color = Sex), size = 2) +
+            ggtitle(titel) +
+            xlab("Age") +
+            ylab("Gene expression relative to ACTb") +
+            facet_wrap(~Subpopulation, ncol = 2) +
+            scale_color_manual(values = c("Male" = "#A67C00", "Female" = "#1D04C2")) +
+            theme(text = element_text(size=14)) +
+            theme(
+                panel.background = element_rect(fill = "white", color = "black"),
+                plot.background = element_rect(fill = "white", color = "black"),
+                text = element_text(color = "black"),
+                panel.grid.major = element_line(color = "gray", size = 0.2),
+                panel.grid.minor = element_blank(),
+                panel.grid.major.x = element_blank()
+            )
+        ggsave(filename=file_name)
+        #dev.off()
+        i = i +1
     }
     
     else {
-        #remove Sex correlation outliers
-      df <- anti_join(df, outliers_Sex_rE, by = c("SampleID", "Gene", "Subpopulation", "rE_Value"))
-    titel <- paste(sig, " expression in ",sub," monocytes (",s,") (LinReg, rE)", sep="")
-file_name <- paste("Significant Genes relating to Age/",titel, ".png", sep = "")
-#png(filename=file_name, height=750, width=750)
-ggplot(data = df, aes(x = Age, y = rE_Value, colour = Sex)) + 
-    geom_smooth(method = glm) + 
-    geom_point(size = 2) +
-    ggtitle(titel) +
-    xlab("Age") + 
-    ylab("Gene expression relative to B2M") +
-    facet_wrap(~ Subpopulation, ncol = 2) +
-    scale_color_manual(values = c("Male" = "#A67C00", "Female" = "#1D04C2")) +
-    theme_bw(base_size = 14) +
-    theme(
-        panel.background = element_rect(fill = "white", color = "black"),
-        plot.background = element_rect(fill = "white", color = "black"),
-        text = element_text(color = "black"),
-        panel.grid.major = element_line(color = "gray", size = 0.2),
-        panel.grid.minor = element_blank(),
-        panel.grid.major.x = element_blank()
-    )
-    ggsave(filename=file_name)
-    #dev.off()
+        titel <- paste(sig, " expression in ",sub," monocytes (",s,") (LinReg, rE)", sep="")
+        file_name <- paste("Significant Genes relating to Age/",titel, ".png", sep = "")
+        #png(filename=file_name, height=750, width=750)
+        ggplot(data = df, aes(x = Age, y = rE_Value, colour = Sex)) + 
+            geom_smooth(method = glm) + 
+            geom_point(size = 2) +
+            ggtitle(titel) +
+            xlab("Age") + 
+            ylab("Gene expression relative to ACTb") +
+            facet_wrap(~ Subpopulation, ncol = 2) +
+            scale_color_manual(values = c("Male" = "#A67C00", "Female" = "#1D04C2")) +
+            theme_bw(base_size = 14) +
+            theme(
+                panel.background = element_rect(fill = "white", color = "black"),
+                plot.background = element_rect(fill = "white", color = "black"),
+                text = element_text(color = "black"),
+                panel.grid.major = element_line(color = "gray", size = 0.2),
+                panel.grid.minor = element_blank(),
+                panel.grid.major.x = element_blank()
+            )
+        ggsave(filename=file_name)
+        #dev.off()
+    }
+}
+
+## Extract Data of Age significant Genes (wo Outliners) -----------------------------------------
+i <- 1
+j <- length(Age_sigGenes_Pearson_woOutliers)
+for (i in 2:j) {
+    sub <- Age_sigGenes_Pearson_woOutliers$Subpopulation[i]
+    df <- get(Age_sigGenes_Pearson$Gene[i])
+    df <- filter(df, Subpopulation == sub)
+}
+
+## LinearRegression (only significant Gene, wo Outliers)-----------------------------------------
+df <- filter(df, !is.na(Age_Group), !is.na(rE_Value), !is.na(Sex))
+createFolder("Significant Genes relating to Age (wo Outliers)")
+
+i <- 1
+j <- length(Age_sigGenes_Pearson$Group)
+for (i in 1:j) {
+    sub <- Age_sigGenes_Pearson$Subpopulation[i]
+    sig <- Age_sigGenes_Pearson$Gene[i]
+    df <- get(sig)
+    df <- filter(df, Subpopulation == sub)
+    s <- Age_sigGenes_Pearson$Sex[i]
+    if (s=="All"){
+        titel <- paste(sig, " expression in ", sub, " monocytes (LinReg, rE, combined)", sep="")
+        file_name <- paste("Significant Genes relating to Age (wo Outliers)/",titel, ".png", sep = "")
+        ggplot(data = df, aes(x = Age, y = rE_Value)) +
+            geom_smooth(method = "glm", color = "black") +
+            geom_point(aes(color = Sex), size = 2) +
+            ggtitle(titel) +
+            xlab("Age") +
+            ylab("Gene expression relative to ACTb") +
+            facet_wrap(~Subpopulation, ncol = 2) +
+            scale_color_manual(values = c("Male" = "#A67C00", "Female" = "#1D04C2")) +
+            theme(text = element_text(size=14)) +
+            theme(
+                panel.background = element_rect(fill = "white", color = "black"),
+                plot.background = element_rect(fill = "white", color = "black"),
+                text = element_text(color = "black"),
+                panel.grid.major = element_line(color = "gray", size = 0.2),
+                panel.grid.minor = element_blank(),
+                panel.grid.major.x = element_blank()
+            )
+        ggsave(filename=file_name)
+        #dev.off()
+        i = i +1
+    }
+    
+    else {
+        titel <- paste(sig, " expression in ",sub," monocytes (",s,") (LinReg, rE)", sep="")
+        file_name <- paste("Significant Genes relating to Age (wo Outliers)/",titel, ".png", sep = "")
+        #png(filename=file_name, height=750, width=750)
+        ggplot(data = df, aes(x = Age, y = rE_Value, colour = Sex)) + 
+            geom_smooth(method = glm) + 
+            geom_point(size = 2) +
+            ggtitle(titel) +
+            xlab("Age") + 
+            ylab("Gene expression relative to ACTb") +
+            facet_wrap(~ Subpopulation, ncol = 2) +
+            scale_color_manual(values = c("Male" = "#A67C00", "Female" = "#1D04C2")) +
+            theme_bw(base_size = 14) +
+            theme(
+                panel.background = element_rect(fill = "white", color = "black"),
+                plot.background = element_rect(fill = "white", color = "black"),
+                text = element_text(color = "black"),
+                panel.grid.major = element_line(color = "gray", size = 0.2),
+                panel.grid.minor = element_blank(),
+                panel.grid.major.x = element_blank()
+            )
+        ggsave(filename=file_name)
+        #dev.off()
     }
 }
 
@@ -1409,28 +1519,28 @@ Age_correlation_FACS <- data.frame(Cells = character(), Sex = character(), N = n
 
 #i <- 7
 for (i in 7:19) {
-      x <- cor.test(FACSdata[,i], FACSdata$Age)
-      row <- data.frame(Cells = colnames(FACSdata[i]),
-                        Sex = "All",
-                        N=length(FACSdata[,i]),
-                        p.value = x$p.value,
-                        Estimate = x$estimate,
-                        Est_CI_Lower = x$conf.int[1],
-                        Est_CI_Upper = x$conf.int[2],
-                        Coefficient = NA, 
-                        Coef_CI_Lower = NA, 
-                        Coef_CI_Upper = NA 
-                        )
-        # Linear regression to get the coefficient and its CI
-        lm_result <- lm(FACSdata[,i] ~ FACSdata$Age)
-        coef_x <- summary(lm_result)$coefficients[2, 1]
-        ci <- confint(lm_result)[2, ]
-        
-        # Update the row with the coefficient and its CI
-        row$Coefficient <- coef_x
-        row$Coef_CI_Lower <- ci[1]
-        row$Coef_CI_Upper <- ci[2]
-      Age_correlation_FACS <- rbind(Age_correlation_FACS, row)
+    x <- cor.test(FACSdata[,i], FACSdata$Age)
+    row <- data.frame(Cells = colnames(FACSdata[i]),
+                      Sex = "All",
+                      N=length(FACSdata[,i]),
+                      p.value = x$p.value,
+                      Estimate = x$estimate,
+                      Est_CI_Lower = x$conf.int[1],
+                      Est_CI_Upper = x$conf.int[2],
+                      Coefficient = NA, 
+                      Coef_CI_Lower = NA, 
+                      Coef_CI_Upper = NA 
+    )
+    # Linear regression to get the coefficient and its CI
+    lm_result <- lm(FACSdata[,i] ~ FACSdata$Age)
+    coef_x <- summary(lm_result)$coefficients[2, 1]
+    ci <- confint(lm_result)[2, ]
+    
+    # Update the row with the coefficient and its CI
+    row$Coefficient <- coef_x
+    row$Coef_CI_Lower <- ci[1]
+    row$Coef_CI_Upper <- ci[2]
+    Age_correlation_FACS <- rbind(Age_correlation_FACS, row)
 }
 
 Sex_correlation_FACS <- data.frame(Cells = character(), Sex = character(), N= numeric(), p.value = numeric(), Coefficient = numeric(), Down95= numeric(), Up95= numeric())
@@ -1438,50 +1548,50 @@ Sex_correlation_FACS <- data.frame(Cells = character(), Sex = character(), N= nu
 FACS_female <- FACSdata %>% filter(FACSdata$Sex == "Female")
 FACS_male <- FACSdata %>% filter(FACSdata$Sex == "Male")
 for (i in 7:19) {
-      x_f <- cor.test(FACS_female[,i], FACS_female$Age)
-      row_f <- data.frame(Cells = colnames(FACS_female[i]),  
-                          Sex = "Female", 
-                          N=length(FACS_female[,i]),
-                          p.value = x_f$p.value,
-                          Estimate = x_f$estimate,
-                          Est_CI_Lower = x_f$conf.int[1],
-                          Est_CI_Upper = x_f$conf.int[2],
-                          Coefficient = NA, 
-                          Coef_CI_Lower = NA, 
-                          Coef_CI_Upper = NA 
-                          )
-        # Linear regression to get the coefficient and its CI
-        lm_result_f <- lm(FACS_female[,i] ~ FACS_female$Age)
-        coef_x_f <- summary(lm_result_f)$coefficients[2, 1]
-        ci_f <- confint(lm_result_f)[2, ]
-        
-        # Update the row with the coefficient and its CI
-        row_f$Coefficient <- coef_x_f
-        row_f$Coef_CI_Lower <- ci_f[1]
-        row_f$Coef_CI_Upper <- ci_f[2]
-        
-      x_m <- cor.test(FACS_male[,i], FACS_male$Age)
-      row_m <- data.frame(Cells = colnames(FACS_male[i]),   
-                          Sex = "Male", 
-                          N=length(FACS_male[,i]), 
-                          p.value = x_m$p.value,
-                          Estimate = x_m$estimate,
-                          Est_CI_Lower = x_m$conf.int[1],
-                          Est_CI_Upper = x_m$conf.int[2],
-                          Coefficient = NA, 
-                          Coef_CI_Lower = NA, 
-                          Coef_CI_Upper = NA 
-                          )
-      # Linear regression to get the coefficient and its CI
-        lm_result_m <- lm(FACS_male[,i] ~ FACS_male$Age)
-        coef_x_m <- summary(lm_result_m)$coefficients[2, 1]
-        ci_m <- confint(lm_result_m)[2, ]
-        
-        # Update the row with the coefficient and its CI
-        row_m$Coefficient <- coef_x_m
-        row_m$Coef_CI_Lower <- ci_m[1]
-        row_m$Coef_CI_Upper <- ci_m[2]
-      Sex_correlation_FACS <- rbind(Sex_correlation_FACS, row_f, row_m)
+    x_f <- cor.test(FACS_female[,i], FACS_female$Age)
+    row_f <- data.frame(Cells = colnames(FACS_female[i]),  
+                        Sex = "Female", 
+                        N=length(FACS_female[,i]),
+                        p.value = x_f$p.value,
+                        Estimate = x_f$estimate,
+                        Est_CI_Lower = x_f$conf.int[1],
+                        Est_CI_Upper = x_f$conf.int[2],
+                        Coefficient = NA, 
+                        Coef_CI_Lower = NA, 
+                        Coef_CI_Upper = NA 
+    )
+    # Linear regression to get the coefficient and its CI
+    lm_result_f <- lm(FACS_female[,i] ~ FACS_female$Age)
+    coef_x_f <- summary(lm_result_f)$coefficients[2, 1]
+    ci_f <- confint(lm_result_f)[2, ]
+    
+    # Update the row with the coefficient and its CI
+    row_f$Coefficient <- coef_x_f
+    row_f$Coef_CI_Lower <- ci_f[1]
+    row_f$Coef_CI_Upper <- ci_f[2]
+    
+    x_m <- cor.test(FACS_male[,i], FACS_male$Age)
+    row_m <- data.frame(Cells = colnames(FACS_male[i]),   
+                        Sex = "Male", 
+                        N=length(FACS_male[,i]), 
+                        p.value = x_m$p.value,
+                        Estimate = x_m$estimate,
+                        Est_CI_Lower = x_m$conf.int[1],
+                        Est_CI_Upper = x_m$conf.int[2],
+                        Coefficient = NA, 
+                        Coef_CI_Lower = NA, 
+                        Coef_CI_Upper = NA 
+    )
+    # Linear regression to get the coefficient and its CI
+    lm_result_m <- lm(FACS_male[,i] ~ FACS_male$Age)
+    coef_x_m <- summary(lm_result_m)$coefficients[2, 1]
+    ci_m <- confint(lm_result_m)[2, ]
+    
+    # Update the row with the coefficient and its CI
+    row_m$Coefficient <- coef_x_m
+    row_m$Coef_CI_Lower <- ci_m[1]
+    row_m$Coef_CI_Upper <- ci_m[2]
+    Sex_correlation_FACS <- rbind(Sex_correlation_FACS, row_f, row_m)
 }
 
 Correlation_FACS <- rbind(Age_correlation_FACS, Sex_correlation_FACS)
@@ -1495,18 +1605,18 @@ write.csv(Correlation_FACS, file_name, row.names = FALSE)
 
 # Define variables and titles for each plot
 plotVariables <- list(
-  list(xvar = "Age", yvar = "Alive", title = "LinReg of alive PBMCs with age", filename = "Alive_Plot"),
-  list(xvar = "Age", yvar = "Bcells", title = "LinReg of Bcells with age", filename = "Bcells_Plot"),
-  list(xvar = "Age", yvar = "NKcells", title = "LinReg of NKcells with age", filename = "NKcells_Plot"),
-  list(xvar = "Age", yvar = "Tcells", title = "LinReg of Tcells with age", filename = "Tcells_Plot"),
-  list(xvar = "Age", yvar = "Monocytes", title = "LinReg of Monocytes with age", filename = "Monocytes_Plot"),
-  list(xvar = "Age", yvar = "Classical_Monocytes", title = "LinReg of classical monocytes with age", filename = "Classical_Monocytes_Plot"),
-  list(xvar = "Age", yvar = "Intermediate_Monocytes", title = "LinReg of intermediate monocytes with age", filename = "Intermediate_Monocytes_Plot"),
-  list(xvar = "Age", yvar = "NonClassical_Monocytes", title = "LinReg of non-classical monocytes with age", filename = "NonClassical_Monocytes_Plot")
+    list(xvar = "Age", yvar = "Alive", title = "LinReg of alive PBMCs with age", filename = "Alive_Plot"),
+    list(xvar = "Age", yvar = "Bcells", title = "LinReg of Bcells with age", filename = "Bcells_Plot"),
+    list(xvar = "Age", yvar = "NKcells", title = "LinReg of NKcells with age", filename = "NKcells_Plot"),
+    list(xvar = "Age", yvar = "Tcells", title = "LinReg of Tcells with age", filename = "Tcells_Plot"),
+    list(xvar = "Age", yvar = "Monocytes", title = "LinReg of Monocytes with age", filename = "Monocytes_Plot"),
+    list(xvar = "Age", yvar = "Classical_Monocytes", title = "LinReg of classical monocytes with age", filename = "Classical_Monocytes_Plot"),
+    list(xvar = "Age", yvar = "Intermediate_Monocytes", title = "LinReg of intermediate monocytes with age", filename = "Intermediate_Monocytes_Plot"),
+    list(xvar = "Age", yvar = "NonClassical_Monocytes", title = "LinReg of non-classical monocytes with age", filename = "NonClassical_Monocytes_Plot")
 )
 
 # Loop through plotVariables and generate/save the plots
 for (plotVar in plotVariables) {
-  generateLinRegPlot(FACSdata, plotVar$xvar, plotVar$yvar, plotVar$title, "Plots_LinReg_FACS/", plotVar$filename)
+    generateLinRegPlot(FACSdata, plotVar$xvar, plotVar$yvar, plotVar$title, "Plots_LinReg_FACS/", plotVar$filename)
     generateLinRegPlot_Sex(FACSdata, plotVar$xvar, plotVar$yvar, plotVar$title, "Plots_LinReg_FACS/Sex_", plotVar$filename)
 }
