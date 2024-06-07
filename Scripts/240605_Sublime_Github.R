@@ -536,6 +536,7 @@ getwd()
 
 write_xlsx(fails, "Fail_rates.xlsx")
 write_xlsx(dataFINAL, "dataFINAL.xlsx")
+write_xlsx(dataFINALmean, "dataFINALmean.xlsx")
 
 
 # *ANOVA* fix the p value ----------------------------------------------------------------------------------------------------
@@ -670,12 +671,12 @@ results <- data.frame(Sex = character(), Gene = character(), Subpopulation = cha
 
 i <- 1
 for (i in 1:length(unique(dataFINALmean$Gene))) {
-    gene <- dataFINALmean$Gene[j]
+    gene <- dataFINALmean$Gene[i]
     df_gene <- filter(dataFINALmean, Gene == gene)
   df_gene <- df_gene %>% filter(!is.na(Timepoint), !is.na(mean_rE), !is.na(Subpopulation), !is.na(Sex))
   j <- 1
   for (j in 1:length(unique(df_gene$Subpopulation))) {
-        sup <- df_gene$Subpopulation[i]
+        sup <- df_gene$Subpopulation[j]
         df_subpop <- filter(df_gene, Subpopulation == sup)
 
     df_subpop$Timepoint <- factor(as.vector(df_subpop$Timepoint))
@@ -758,7 +759,7 @@ median_TP0 <- median(baseline$mean_rE)
 anova_f <- aov(mean_rE ~ Timepoint, data = female)
 p_value_f <- summary(anova_f)[[1]]$"Pr(>F)"[1]
 
-results <- rbind(results, data.frame(Sex = female$Sex[1], Gene = gene_means_list[j], Subpopulation = sup, P_Value = p_value_f))
+results <- rbind(results, data.frame(Sex = female$Sex[1], Gene = gene, Subpopulation = sup, P_Value = p_value_f))
 
 ggboxplot(female, 
           x = "Timepoint", 
@@ -796,12 +797,12 @@ results <- data.frame(Category = character(), Gene = character(), Subpopulation 
 
 i <- 1
 for (i in 1:length(unique(dataFINALmean$Gene))) {
-    gene <- dataFINALmean$Gene[j]
+    gene <- dataFINALmean$Gene[i]
     df_gene <- filter(dataFINALmean, Gene == gene)
    df_gene <- df_gene %>% filter(!is.na(Timepoint), !is.na(mean_rE), !is.na(Subpopulation), !is.na(Category))
   j <- 1
   for (j in 1:length(unique(df_gene$Subpopulation))) {
-        sup <- df_gene$Subpopulation[i]
+        sup <- df_gene$Subpopulation[j]
         df_subpop <- filter(df_gene, Subpopulation == sup)
     
     df_minor <- df_subpop %>% filter(Category != "MODERATE")

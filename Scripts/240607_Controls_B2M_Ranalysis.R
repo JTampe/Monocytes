@@ -4,7 +4,7 @@ if (requireNamespace("thematic"))
   thematic::thematic_rmd(font = "auto")
 
 today <- Sys.Date()
-output_location <- paste(today,"_Stroke_Results", sep="")
+output_location <- paste(today,"_Control_Results", sep="")
 
 setwd("/Users/ju5263ta/Github/Monocytes/Data/")
 if (!dir.exists(output_location)) {
@@ -122,28 +122,12 @@ generateLinRegPlot_Sex <- function(data, xvar, yvar, title, folder, filename) {
   ggsave(filename = file_name, plot = p)
 }
 
-## Weighted Correlation
-weighted_correlation <- function(x, y, sd_x, sd_y) {
-  n <- length(x)
-  if (n != length(y) || n != length(sd_x) || n != length(sd_y)) {
-    stop("Input vectors must have the same length.")
-  }
-  
-  cov_xy <- sum((x - mean(x)) * (y - mean(y)) * sd_x * sd_y) / sum(sd_x^2 * sd_y^2)
-  var_x <- sum((x - mean(x))^2 * sd_x^2) / sum(sd_x^2)
-  var_y <- sum((y - mean(y))^2 * sd_y^2) / sum(sd_y^2)
-  
-  weighted_cor <- cov_xy / sqrt(var_x * var_y)
-  
-  return(weighted_cor)
-}
-
 # *Data*
 ## Loading of the Data -----------------------------------------
 setwd("/Users/ju5263ta/Github/Monocytes/Data/Fluidigm")
 getwd ()
 # make sure that before you check the files, that not an empty column has been added to the end of the file, remove and export as .csv otherwise.
-files <- system( "ls *.csv", intern=T)
+#files <- system( "ls *.csv", intern=T)
 
 raw_data <- read_csv("Controls_B2M.csv", 
     skip = 11)
@@ -152,8 +136,8 @@ if ( length(colnames(raw_data)) > 13) {
     raw_data <- raw_data[, !colnames(raw_data) %in% "Call.1"]
     colnames(raw_data) <- c("ID","Name","Type","rConc","Name.1","Type.1","Reference","Value", "Quality","Call","Threshold","Value.1","Quality.1","Call.1")
 }
-i <- 1
-raw_data$Dataset<-files[i]
+#i <- 1
+#raw_data$Dataset<-files[i]
 
 # give the right labels and combine in one big file
 names(raw_data)[names(raw_data) == 'Name'] <- 'Sample'
@@ -268,9 +252,9 @@ dataTRIM$Cell_Count <- NULL
 #dataTRIM$Gene1 <- NULL
 
 ## load all Metadata ---------------------------------------------------------------
-setwd("/Users/ju5263ta/Github/Monocytes/Data/Metadata")
+setwd("/Users/ju5263ta/Github/Monocytes/Data/Metadata/")
 getwd ()
-metadata <- read_excel("Metadata_Controls.xlsx")
+metadata <- read_excel("Metadata_Controls.xls")
 Metadata_GeneID <- read_excel("Metadata_GeneID.xlsx")
 
 # Combine the data frames based on common values in the "id" column
@@ -382,45 +366,45 @@ dataFINAL <- as.data.frame(data_imputed_mean)
 ## Effect of the different variables on the data or better on the dCT_Mean!
 
 # with the original  data
-lm(dCT_Mean~Gene+Age+Sex+Subpopulation+SampleID, data = dataFINAL) %>% sjPlot::tab_model()
+#lm(dCT_Mean~Gene+Age+Sex+Subpopulation+SampleID, data = dataFINAL) %>% sjPlot::tab_model()
 # with the original  data but without individuals!
-lm(dCT_Mean~Gene+Age+Sex+Subpopulation, data = dataFINAL) %>% sjPlot::tab_model()
+#lm(dCT_Mean~Gene+Age+Sex+Subpopulation, data = dataFINAL) %>% sjPlot::tab_model()
 
 # with the imputed data
-lm(dCT_Mean~Gene+Age+Sex+Subpopulation+SampleID, data = data_imputed) %>% sjPlot::tab_model()
+#lm(dCT_Mean~Gene+Age+Sex+Subpopulation+SampleID, data = data_imputed) %>% sjPlot::tab_model()
 
 # similar but how to get the variables out:
 # one is the actual analysis, here a linear regression with the function lm. 
-fit2<-with(data_imputed,lm(dCT_Value~Gene+Age+Sex+Subpopulation+SampleID))
-fit1<-with(data_imputed,lm(dCT_Value~Gene+Age+Sex+Subpopulation))
+#fit2<-with(data_imputed,lm(dCT_Value~Gene+Age+Sex+Subpopulation+SampleID))
+#fit1<-with(data_imputed,lm(dCT_Value~Gene+Age+Sex+Subpopulation))
 # The other stage is pooling of the estimates, which is done with function pool.
-res2<-pool(fit2)
-res1<-pool(fit1)
-summary(res2, conf.int=TRUE)
-summary(res1, conf.int=TRUE)
+#res2<-pool(fit2)
+#res1<-pool(fit1)
+#summary(res2, conf.int=TRUE)
+#summary(res1, conf.int=TRUE)
 
 ## Check imputation & Questions
 
 # Plots for imputation--------------------------------------------------
 # Check convergence
-plot(data_imputed)
+#plot(data_imputed)
 # kernel density plots for imputed values 
 #    densityplot(data_imputed)
 
 ### which one to look at, shows the spread of the imputated data
-densityplot(data_imputed, data=~dCT_Value | Subpopulation)
-densityplot(data_imputed, data=~dCT_Value | Sex)
+#densityplot(data_imputed, data=~dCT_Value | Subpopulation)
+#densityplot(data_imputed, data=~dCT_Value | Sex)
 
 #choose imputation number 1
 # better: choose the mean from 20 impoutations
-check1<-lm(dCT_Mean~Gene+Age+Sex+Subpopulation+SampleID, data=finaldata, subset=.imp==1)
+#check1<-lm(dCT_Mean~Gene+Age+Sex+Subpopulation+SampleID, data=finaldata, subset=.imp==1)
 #plot(check1)
-dataFINAL_imp <- filter(finaldata, .imp==1)
+#dataFINAL_imp <- filter(finaldata, .imp==1)
 
 ## different approach but oly works on the rE!
-dataFINAL$rE_Value <- 2^((-1)*dataFINAL$dCT_Mean)
+#dataFINAL$rE_Value <- 2^((-1)*dataFINAL$dCT_Mean)
 # with the original  data but without individuals!
-glm(rE_Value~Gene+Age+Sex+Subpopulation, family = "gaussian", data = dataFINAL) %>% tab_model()
+#glm(rE_Value~Gene+Age+Sex+Subpopulation, family = "gaussian", data = dataFINAL) %>% tab_model()
 
 # Questions:
 # how is the summary interpretated? estimate? SD error? p value?
@@ -520,7 +504,7 @@ dataFINALmean <- dataFINALmean %>% filter(!is.na(Age_Group), !is.na(rE_Value),!i
 
 ## Change working directory so that everything is getting saved in the right place ----------------
 today <- Sys.Date()
-output_location <- paste(today,"_Stroke_Results", sep="")
+output_location <- paste(today,"_Control_Results", sep="")
 setwd(paste("/Users/ju5263ta/Github/Monocytes/Data/",output_location, "/",sep=""))
 getwd()
 
