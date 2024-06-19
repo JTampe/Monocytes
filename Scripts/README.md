@@ -21,4 +21,4 @@ system("Rscript /Users/ju5263ta/Github/Monocytes/Scripts/240607_Controls_B2M.R")
 system("Rscript /Users/ju5263ta/Github/Monocytes/Scripts/240607_Stroke_B2M.R")
 ```
 
-All output will be saved in a folder: TODAYS-DATE_Stroke/Controls_Results
+All output will be saved in a folder: TODAYS-DATE_Stroke/Controls_HK_Results
