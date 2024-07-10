@@ -164,10 +164,6 @@ data$dCT_Value<-ifelse(data$Call=='mFlag', yes=NA, no=data$dCT_Value) #999 inste
 # sort through quality and give and NA to everything that Failed (=999) or is above CT 35
 data$dCT_Value<-ifelse(data$Value>=35, yes=35, no=data$dCT_Value) 
 
-#data$Value<-ifelse(data$Value>=35, yes=35, no=data$Value) 
-#remove empty rows (there should not be any...)
-#data<-data[!data$Gene=="",]
-
 # take the data
 dataTRIM <-cbind.data.frame(Sample=data$Sample,
                             Gene=data$Gene,
@@ -201,14 +197,12 @@ genes
 no_genes <- length(genes)
 no_genes
 
-
 # List of Samples
 samples <- unique(dataTRIM$Sample)
 
 #Here we also split technical and (pseudo-)biological replicates....:
 #without the B1/B2 segregation, we would have each read of the gene normalized against the mean of the two biological repeats of ACTb. This is in theory correct but we lose the information on the mean/SD while doing so through the machine.
 #without the T1/T2 separation, we have the plate as a whole normalized against all 4 reads... with it we can split the whole plate into two halves, each standing for its own technical read.
-
 info_rows <- t(data.frame(
   sapply(dataTRIM$Sample, function(x) {
     ret <- unlist(stringr::str_split(x, "[_\\s\\.]"))
@@ -219,10 +213,6 @@ info_rows <- t(data.frame(
   })
 ))
 colnames(info_rows) = c("Subpopulation", "Cell_Count", "SampleID","BiologicalReplicate")
-
-# NRT: no Polymerase, technical control 
-# NTC: no Template, neg-Sample control   
-# 10xLC:Linarity control
 info_rows <- as.data.frame(info_rows)
 
 # Label Subpopulations:
@@ -234,15 +224,6 @@ info_rows$Subpopulation[grep("C",info_rows$Subpopulation)]  <- "classical"
 info_rows$Subpopulation[grep("I",info_rows$Subpopulation)]  <- "intermediate"
 
 dataTRIM = cbind(dataTRIM, info_rows)
-
-#dataTRIM <- dataTRIM %>% filter(SampleID != "Test01")
-#dataTRIM <- dataTRIM %>% filter(SampleID != "Test02")
-#dataTRIM <- dataTRIM %>% filter(SampleID != "Test03")
-#dataTRIM <- dataTRIM %>% filter(SampleID != "Test04")
-
-#dataTRIM$Cell_Count <- NULL
-#dataTRIM$Sample <- NULL
-#dataTRIM$Gene1 <- NULL
 
 ## load all Metadata ---------------------------------------------------------------
 setwd("/Users/ju5263ta/Github/Monocytes/Data/Metadata/")
@@ -324,9 +305,6 @@ initial2$predictorMatrix
 #data_imputed<-mice(data_forImputation, m=20, maxit=10, seed=1234, meth=initial1$method, pred=initial1$predictorMatrix)
 data_imputed<-mice(dataWORKING, m=20, maxit=10, seed=1234, meth=initial2$method, pred=initial2$predictorMatrix)
 
-
-
-# QQ-plot of regression residuals and plot of residuals vs fitted values
 # extract the imputed data into a “normal” data frame, run the analyses on each imputation separately and do model diagnostics.
 finaldata <- complete(data_imputed, "long")
 #View(finaldata)
@@ -342,15 +320,13 @@ data_imputed_mean <- finaldata  %>%
             .groups = "drop")
 dataFINAL <- as.data.frame(data_imputed_mean)
 
-## Effect of different variables
-## Effect of the different variables on the data or better on the dCT_Mean!
+# Effect of different variables ---------------------------
 
-# with the original  data
+## with the original  data
 #lm(dCT_Mean~Gene+Age+Sex+Subpopulation+SampleID, data = dataFINAL) %>% sjPlot::tab_model()
-# with the original  data but without individuals!
+## with the original  data but without individuals!
 #lm(dCT_Mean~Gene+Age+Sex+Subpopulation, data = dataFINAL) %>% sjPlot::tab_model()
-
-# with the imputed data
+## with the imputed data
 #lm(dCT_Mean~Gene+Age+Sex+Subpopulation+SampleID, data = data_imputed) %>% sjPlot::tab_model()
 
 # similar but how to get the variables out:
@@ -363,13 +339,11 @@ dataFINAL <- as.data.frame(data_imputed_mean)
 #summary(res2, conf.int=TRUE)
 #summary(res1, conf.int=TRUE)
 
-## Check imputation & Questions
-
-# Plots for imputation--------------------------------------------------
+## Check imputation & Questions (Plots for imputation) --------------------------------------------------
 # Check convergence
 #plot(data_imputed)
 # kernel density plots for imputed values 
-#    densityplot(data_imputed)
+# densityplot(data_imputed)
 
 ### which one to look at, shows the spread of the imputated data
 #densityplot(data_imputed, data=~dCT_Value | Subpopulation)
@@ -381,16 +355,10 @@ dataFINAL <- as.data.frame(data_imputed_mean)
 #plot(check1)
 #dataFINAL_imp <- filter(finaldata, .imp==1)
 
-## different approach but oly works on the rE!
+## different approach but only works on the rE!
 #dataFINAL$rE_Value <- 2^((-1)*dataFINAL$dCT_Mean)
 # with the original  data but without individuals!
 #glm(rE_Value~Gene+Age+Sex+Subpopulation, family = "gaussian", data = dataFINAL) %>% tab_model()
-
-# Questions:
-# how is the summary interpretated? estimate? SD error? p value?
-# especially in this one! what does it mean for the one thats not shown of the levels in factors?
-#lm(dCT_Mean~Gene+Age+Sex+Subpopulation, data = dataFINAL) %>% sjPlot::tab_model()
-
 
 # *FACS & Gene Metadata ---------------------------------------------------------
 
@@ -422,19 +390,6 @@ patients
 
 no_patients <- length(patients)
 no_patients
-
-# #Assign the right Age Groups: --> 3 Groups
-# i = 1
-# j = length(dataFINAL$Age)
-# for (i in (1:j))  {
-#     if (dataFINAL$Age[i] > 65) {
-#         dataFINAL$Age_Group[i] <- "Older"
-#     } else if (dataFINAL$Age[i] < 35) {
-#         dataFINAL$Age_Group[i] <- "Adult"
-#     } else {
-#         dataFINAL$Age_Group[i] <- "Middle Aged"
-#     }
-# }     
 
 ## import FACS data ----------------------------------------------------------------------------------------------------
 setwd("/Users/ju5263ta/Github/Monocytes/Data/FACS")
@@ -526,7 +481,6 @@ Summary_rE_Sex_Matrix2 <- dcast(Summary_rE_Sex, Gene_Order ~ Info2, value.var = 
 
 write.table(Summary_rE_Sex_Matrix, paste(new_folder_name,"Summary_rE_Sex_Matrix.txt", sep=""), sep="\t", row.names=FALSE)
 write.table(Summary_rE_Sex_Matrix2, paste(new_folder_name,"Summary_rE_Sex_Matrix2.txt", sep=""), sep="\t", row.names=FALSE)
-
 
 # *Splitting the data for future uses*-----------------------------------------
 ## Gene data-----------------------------------------
