@@ -1,3 +1,5 @@
-Data/*/
-!Data/FACS/231002_FACSdata.xls
+Data/
+rawData_Controls/
+rawData_Stroke/
 Old/
+Scripts/240607_Stroke_B2M.R
