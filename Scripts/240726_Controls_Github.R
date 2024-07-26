@@ -271,7 +271,7 @@ exclude_genes  <- unique(c("Xeno",failed_genes$Gene))
 dataWORKING <- dataAll %>%  filter(!Gene %in% exclude_genes)
 
 # visualize the missing values:
-vis_miss(dataWORKING)
+#vis_miss(dataWORKING)
 # QC 75% missing 1.8%
 
 initial2<-mice(dataWORKING, maxit=0, print=F)
