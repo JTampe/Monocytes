@@ -16,9 +16,8 @@ system( "ls" )
 
 Run Script directly in R:
 ```
-system("Rscript /Users/ju5263ta/Github/Monocytes/Scripts/240607_Controls_ACTb.R")
-system("Rscript /Users/ju5263ta/Github/Monocytes/Scripts/240607_Controls_B2M.R")
-system("Rscript /Users/ju5263ta/Github/Monocytes/Scripts/240607_Stroke_B2M.R")
+system("Rscript /Users/ju5263ta/Github/Monocytes/Scripts/240710_Controls_wFoldinduction.R")
+
 ```
 
 All output will be saved in a folder: TODAYS-DATE_Stroke/Controls_HK_Results
