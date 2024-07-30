@@ -16,7 +16,7 @@ system( "ls" )
 
 Run Script directly in R:
 ```
-system("Rscript /Users/ju5263ta/Github/Monocytes/Scripts/240710_Controls_wFoldinduction.R")
+system("Rscript /Users/ju5263ta/Github/Monocytes/Scripts/240726_Controls_Github.R")
 
 ```
 
