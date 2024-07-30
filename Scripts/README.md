@@ -20,4 +20,4 @@ system("Rscript /Users/ju5263ta/Github/Monocytes/Scripts/240726_Controls_Github.
 
 ```
 
-All output will be saved in a folder: TODAYS-DATE_Stroke/Controls_HK_Results
+All output will be saved in a folder: TODAYS-DATE_Stroke/Controls_Github_Results
