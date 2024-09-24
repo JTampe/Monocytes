@@ -14,10 +14,16 @@ R
 system( "ls" )
 ```
 
-Run Script directly in R:
+Run Script for the Control Data directly in R:
 ```
-system("Rscript /Users/ju5263ta/Github/Monocytes/Scripts/240726_Controls_Github.R")
+system("Rscript /Users/ju5263ta/Github/Monocytes/Scripts/240905_Controls_MFIregression.R")
+```
 
+Run Script for the Stroke Data directly in R:
 ```
+system("Rscript /Users/ju5263ta/Github/Monocytes/Scripts/240920_Stroke_NormAll_imp.R")
+```
+
+
 
 All output will be saved in a folder: TODAYS-DATE_Stroke/Controls_Github_Results
