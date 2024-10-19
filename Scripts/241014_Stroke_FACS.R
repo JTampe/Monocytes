@@ -589,20 +589,20 @@ ggplot(variance_table, aes(x = Timepoint, y = CV, fill = Subpopulation)) +
 # *Normalize the data vs the  Geometric mean of each Sample* ----------------
 
 # Calculate the CT median or mean
-# dataFINAL$CTmedian <- NA
-# dataFINAL$CTmean <- NA
+dataFINAL$CTmedian <- NA
+dataFINAL$CTmean <- NA
 dataFINAL$CTgmean <- NA  # For geometric mean
 
 dataFINAL <- dataFINAL %>%
     group_by(Sample) %>%
     mutate(
-      #  CTmedian = median(CT[CT < 35], na.rm = TRUE),
-      #  CTmean = mean(CT[CT < 35], na.rm = TRUE),
-        CTgmean = exp(mean(log(CT[CT < 35]), na.rm = TRUE))  # Geometric mean
+       CTmedian = median(CT[CT < 35], na.rm = TRUE),
+       CTmean = mean(CT[CT < 35], na.rm = TRUE),
+       CTgmean = exp(mean(log(CT[CT < 35]), na.rm = TRUE))  # Geometric mean
     )
 # normalize all CT value to the Media CT value of each Sample
-# dataFINAL$dCT_median <- dataFINAL$CT - dataFINAL$CTmedian
-# dataFINAL$dCT_mean <- dataFINAL$CT - dataFINAL$CTmean
+dataFINAL$dCT_median <- dataFINAL$CT - dataFINAL$CTmedian
+dataFINAL$dCT_mean <- dataFINAL$CT - dataFINAL$CTmean
 dataFINAL$dCT_gmean <- dataFINAL$CT - dataFINAL$CTgmean
 
 # check the variance again after the imputation
@@ -612,7 +612,7 @@ filtered_data <- dataFINAL %>%
 # Calculate the CV for each group
 variance_table <- filtered_data %>%
     group_by(Gene, Timepoint, Subpopulation) %>%
-    summarize(CV = sd(dCT_gmean, na.rm = TRUE) / mean(dCT_gmean, na.rm = TRUE)) %>%
+    summarize(CV = sd(dCT_median, na.rm = TRUE) / mean(dCT_median, na.rm = TRUE)) %>%
     ungroup()
 
 # Display the variance table
@@ -632,9 +632,9 @@ ggplot(variance_table, aes(x = Timepoint, y = CV, fill = Subpopulation)) +
 dataFINAL <- dataFINAL %>%
     group_by(Gene) %>%
     mutate(
-        mean_dCT_Gene = mean(dCT_gmean, na.rm = TRUE),  # Mean of mean_rE by Gene
-        sd_dCT_Gene = sd(dCT_gmean, na.rm = TRUE),      # Standard deviation of mean_rE by Gene
-        z_score_dCT = (dCT_gmean - mean_dCT_Gene) / sd_dCT_Gene,  # Z-score calculation
+        mean_dCT_Gene = mean(dCT_median, na.rm = TRUE),  # Mean of mean_rE by Gene
+        sd_dCT_Gene = sd(dCT_median, na.rm = TRUE),      # Standard deviation of mean_rE by Gene
+        z_score_dCT = (dCT_median - mean_dCT_Gene) / sd_dCT_Gene,  # Z-score calculation
         inverted_z_score = -z_score_dCT
         ) %>%
     ungroup()  # %>% filter(abs(z_score_dCT) <= 3)  # remove outlier
@@ -644,11 +644,11 @@ dataFINAL <- dataFINAL %>%
 #### Calculate rE ----------------
 
 # change here to median if you want
-dataFINAL$rE_Value <- 2^((-1)*dataFINAL$dCT_gmean)
+dataFINAL$rE_Value <- 2^((-1)*dataFINAL$dCT_median)
 #dataFINAL$rE_Value <- 2^((-1)*dataFINAL$dCT_median)
 
 dataFINAL$rE_Value <- ifelse(dataFINAL$CT>=35, yes=0, no=dataFINAL$rE_Value)
-dataFINAL$rE_Value <- ifelse(dataFINAL$dCT_gmean >=35, yes=0, no=dataFINAL$rE_Value) 
+dataFINAL$rE_Value <- ifelse(dataFINAL$dCT_median >=35, yes=0, no=dataFINAL$rE_Value) 
 
 # Check but if the g-median is above 30 the run was probably not successfull
 dataFINAL$rE_Value <- ifelse(dataFINAL$CTgmean>=30, yes=0, no=dataFINAL$rE_Value)
@@ -679,7 +679,7 @@ dataFINALmean <- dataFINAL %>%
         group_by(SampleID, Sex, Age, Category, Timepoint, DaysPS,
                  Subpopulation, Gene, GeneID) %>%
         summarise(mean_CT = mean(CT), sd_CT = sd(CT),
-                  mean_dCT = mean(dCT_gmean), sd_dCT = sd(dCT_gmean),
+                  mean_dCT = mean(dCT_median), sd_dCT = sd(dCT_median),
                   mean_Z = mean(inverted_z_score), sd_Z = sd(inverted_z_score),
                   mean_rE = mean(rE_Value), sd_rE = sd(rE_Value)
                   )%>%
@@ -984,7 +984,7 @@ automate_ANOVA("ANOVA_FACS_results", "ANOVAwilcox_FACS exOutliers", # Folders
 # *Gene Expr. statistics* ----------------------------------------------------------------------------------------------------
 # As they are non-normal disributed, dependent with similar variance
 # Adjust to yes if you want plots to be saved or n if not
-plot_save <- "n"
+plot_save <- "y"
 
 # remove unmatched CTR for ANOVA too 
 data_rE_mean <- dataFINALmean %>%
@@ -1150,7 +1150,7 @@ ANOVA_Zscore$TP1_Significance <- sapply(ANOVA_Zscore$TP1_P_Value, get_significan
 ANOVA_Zscore$TP2_Significance <- sapply(ANOVA_Zscore$TP2_P_Value, get_significance)
 ANOVA_Zscore$TP3_Significance <- sapply(ANOVA_Zscore$TP3_P_Value, get_significance)
 ANOVA_Zscore$TP4_Significance <- sapply(ANOVA_Zscore$TP4_P_Value, get_significance)
-write.csv(ANOVA_Zscore, file = "ANOVA_results/ANOVA_Results_Zscore.csv", row.names = FALSE)
+write.csv(ANOVA_Zscore, file = "ANOVA_Results_Zscore.csv", row.names = FALSE)
 
 #### *Male vs Female Analysis* --------------------------------------------------
 ## you can try to adjust the loop that it also only plots the facet comparisons upon request
