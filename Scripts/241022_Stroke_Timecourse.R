@@ -1240,6 +1240,30 @@ for (j in 1:length(unique(data_rE_mean_matched$Gene))) {
             
             file_name <- file.path(folder, paste(gene,"_", sup, "_Zscore_ANOVAwilcox.png", sep = ""))
             ggsave(filename = file_name)
+            
+            # Timeline plot
+                title_facet <- paste(gene, "expression in", sup, "monocytes (Zscored dCT)", sep=" ")
+                
+            ggline(subset(df), 
+                       x = "Timepoint", 
+                       y = "mean_Z",  
+                       add = "mean_se",  # Add mean and standard error
+                       size = 1.2) +  
+                    labs(y = paste(gene, "expression (Z-scored from CT - CT Sample Median)"), 
+                         title = title_facet) +
+                    theme_bw() +  # Apply white background
+                    theme(panel.grid.major = element_line(size = 0.2, linetype = 'solid', color = "gray80"), 
+                          panel.grid.minor = element_blank(), 
+                          panel.border = element_blank(),
+                          axis.line = element_line(color = "black")) +
+                    stat_compare_means(label = "p.signif", 
+                                       method = "anova", #wilcox before
+                                       ref.group = "TP0", 
+                                       hide.ns = TRUE, 
+                                       label.y = max(df$mean_Z))
+                
+                    file_name_facet <- paste0(folder, "/", title_facet, "_Mean_SEM.png")
+                    ggsave(filename = file_name_facet)
         }
     }
 }
@@ -1251,9 +1275,8 @@ ANOVA_Zscore$TP3_Significance <- sapply(ANOVA_Zscore$TP3_P_Value, get_significan
 ANOVA_Zscore$TP4_Significance <- sapply(ANOVA_Zscore$TP4_P_Value, get_significance)
 write.csv(ANOVA_Zscore, file = "ANOVA_Results_Zscore.csv", row.names = FALSE)
 
-#### *Male vs Female Analysis* --------------------------------------------------
-## you can try to adjust the loop that it also only plots the facet comparisons upon request
-folder <- "ANOVA_rE_Sex_Plots"
+#### *Male vs Female Analysis (Mean ± SEM)* -------------------------------------
+folder <- "Mean_SEM_Sex_Plots"
 createFolder(folder)  # Ensure the folder exists
 results <- data.frame(Sex = character(), Gene = character(), Subpopulation = character(), 
                       P_Value = numeric(), TP1_P_Value = numeric(), TP2_P_Value = numeric(), 
@@ -1262,308 +1285,169 @@ results <- data.frame(Sex = character(), Gene = character(), Subpopulation = cha
 for (i in 1:length(unique(data_rE_mean_matched$Gene))) {
     gene <- unique(data_rE_mean_matched$Gene)[i]
     df_gene <- filter(data_rE_mean_matched, Gene == gene)
-    df_gene <- df_gene %>% filter(!is.na(Timepoint), !is.na(mean_rE), !is.na(Subpopulation), !is.na(Sex))
+    df_gene <- df_gene %>% filter(!is.na(Timepoint), !is.na(mean_Z), !is.na(Subpopulation), !is.na(Sex))
     
     for (j in 1:length(unique(df_gene$Subpopulation))) {
         sup <- unique(df_gene$Subpopulation)[j]
         df_subpop <- filter(df_gene, Subpopulation == sup)
         
         # Remove outliers
-        df_subpop_clean <- df_subpop[!df_subpop$mean_rE %in% boxplot.stats(df_subpop$mean_rE)$out, ]
+        df_subpop_clean <- df_subpop[!df_subpop$mean_Z %in% boxplot.stats(df_subpop$mean_Z)$out, ]
         
         if (nrow(df_subpop_clean) <= 0) next  # Skip if no rows remain
         
         tryCatch({
-            title_facet <- paste(gene, "expression in", sup, "monocytes (LinReg, rE)", sep=" ")
+            title_facet <- paste(gene, "expression in", sup, "monocytes (Zscored dCT)", sep=" ")
             
-            # Faceted boxplot: comparing Male vs Female across Timepoints
-            ggboxplot(df_subpop_clean, 
-                      x = "Sex", 
-                      y = "mean_rE", 
-                      color = "Sex",  
-                      title = title_facet,
-                      add = "jitter", 
-                      facet.by = "Timepoint",
-                      legend = "none", 
-                      ylab = paste(gene, "expression relative to B2M"), 
-                      width = 0.8, 
-                      add.params = list(size = 1, alpha = 0.5)) +  
-                stat_compare_means(method = "anova", label.y = max(df_subpop_clean$mean_rE)) +        
-                stat_compare_means(label = "p.signif", 
-                                   method = "wilcox", 
-                                   ref.group = "Male", 
-                                   hide.ns = TRUE, 
-                                   label.y = max(df_subpop_clean$mean_rE)) +
-                scale_color_manual(values = c("Male" = "#A67C00", "Female" = "#1D04C2"))
+            # Line plot comparing Male vs Female with mean ± SEM across Timepoints
+            ggline(subset(df_subpop_clean, !is.na(Sex)), 
+                   x = "Timepoint", 
+                   y = "mean_Z", 
+                   color = "Sex", 
+                   add = "mean_se",  # Add mean and standard error
+                   size = 1.2) +  
+                labs(y = paste(gene, "expression (Z-scored from CT - CT Sample Median)"), 
+                     title = title_facet) +
+                scale_color_manual(values = c("Male" = "#A67C00", "Female" = "#1D04C2")) +
+                theme_bw() +  # Apply white background
+                theme(panel.grid.major = element_line(size = 0.2, linetype = 'solid', color = "gray80"), 
+                      panel.grid.minor = element_blank(), 
+                      panel.border = element_blank(),
+                      axis.line = element_line(color = "black")) +
+                stat_compare_means(method = "wilcox.test",  # or "t.test" 
+                                   aes(group = Sex),
+                                   label = "p.signif",  
+                                   size = 5) 
             
             if (plot_save == "y") {
-            file_name_facet <- paste0(folder, "/", title_facet, "_Facets.png")
-            ggsave(filename = file_name_facet)
+                file_name_facet <- paste0(folder, "/", title_facet, "_Mean_SEM.png")
+                ggsave(filename = file_name_facet)
             }
             
-            # Male analysis
-            male <- filter(df_subpop_clean, Sex == "Male")
-            title_male <- paste(gene, "expression in", sup, "(Male) monocytes (LinReg, rE)", sep = "")
-            male_clean <- male[!male$mean_rE %in% boxplot.stats(male$mean_rE)$out, ]
-            
-            baseline_male <- filter(male_clean, Timepoint == "TP0")
-            median_TP0_male <- median(baseline_male$mean_rE)
-            
-            # ANOVA for Male
-            anova_m <- aov(mean_rE ~ Timepoint, data = male_clean)
-            p_value_m <- summary(anova_m)[[1]]$"Pr(>F)"[1]
+            # Initialize a list to store p-values for timepoints
+            p_values_list <- list(TP0 = NA, TP1 = NA, TP2 = NA, TP3 = NA, TP4 = NA)
             
             # Extract p-values for each timepoint comparison (pairwise Wilcoxon)
-            timepoints <- c("TP1", "TP2", "TP3", "TP4")
-            p_values_tp_m <- sapply(timepoints, function(tp) {
-                if (sum(male_clean$Timepoint == tp) > 0) {
-                    tryCatch({
-                        wilcox.test(male_clean$mean_rE[male_clean$Timepoint == "TP0"],
-                                    male_clean$mean_rE[male_clean$Timepoint == tp])$p.value
-                    }, error = function(e) NA)
-                } else {
-                    NA
-                }
-            })
-            
-            results <- rbind(results, data.frame(Sex = "Male", Gene = gene, Subpopulation = sup, 
-                                                 P_Value = p_value_m, 
-                                                 TP1_P_Value = p_values_tp_m[1], 
-                                                 TP2_P_Value = p_values_tp_m[2], 
-                                                 TP3_P_Value = p_values_tp_m[3], 
-                                                 TP4_P_Value = p_values_tp_m[4]))
-            
-            if (plot_save == "y") {
-                ggboxplot(male_clean, 
-                          x = "Timepoint", 
-                          y = "mean_rE", 
-                          color = "Timepoint", 
-                          title = title_male,
-                          add = "jitter", 
-                          legend = "none", 
-                          ylab = paste(gene, "expression relative to B2M"), 
-                          width = 0.6, 
-                          add.params = list(size = 1, alpha = 0.5)) +  
-                    geom_hline(yintercept = median_TP0_male, linetype = 2) + 
-                    stat_compare_means(method = "anova", label.y = max(male_clean$mean_rE)) +        
-                    stat_compare_means(label = "p.signif", 
-                                       method = "wilcox", 
-                                       ref.group = "TP0", 
-                                       hide.ns = TRUE, 
-                                       label.y = max(male_clean$mean_rE)) +
-                    scale_color_manual(values = my_colors)
+            timepoints <- c("TP0", "TP1", "TP2", "TP3", "TP4")
+            for (tp in timepoints) {
+                male_values <- df_subpop_clean$mean_Z[df_subpop_clean$Timepoint == tp & df_subpop_clean$Sex == "Male"]
+                female_values <- df_subpop_clean$mean_Z[df_subpop_clean$Timepoint == tp & df_subpop_clean$Sex == "Female"]
                 
-                file_name_male <- paste0(folder, "/", title_male, ".png")
-                ggsave(filename = file_name_male)
+                # Perform Wilcoxon test for the comparison of Male vs Female at each timepoint
+                if (length(male_values) > 0 && length(female_values) > 0) {
+                    wilcox_result <- wilcox.test(male_values, female_values)
+                    p_values_list[[tp]] <- wilcox_result$p.value
+                }
             }
             
-            # Female analysis
-            female <- filter(df_subpop_clean, Sex == "Female")
-            title_female <- paste(gene, "expression in", sup, "(Female) monocytes (LinReg, rE)", sep = "")
-            female_clean <- female[!female$mean_rE %in% boxplot.stats(female$mean_rE)$out, ]
+            # Add results for Male vs Female for all timepoints as a single row
+            results <- rbind(results, data.frame(WilcoxComparison = "Male vs Female", Gene = gene, Subpopulation = sup, 
+                                                 TP0_P_Value = p_values_list[["TP0"]],
+                                                 TP1_P_Value = p_values_list[["TP1"]],
+                                                 TP2_P_Value = p_values_list[["TP2"]],
+                                                 TP3_P_Value = p_values_list[["TP3"]],
+                                                 TP4_P_Value = p_values_list[["TP4"]]))
             
-            baseline_female <- filter(female_clean, Timepoint == "TP0")
-            median_TP0_female <- median(baseline_female$mean_rE)
             
-            # ANOVA for Female
-            anova_f <- aov(mean_rE ~ Timepoint, data = female_clean)
-            p_value_f <- summary(anova_f)[[1]]$"Pr(>F)"[1]
-            
-            # Extract p-values for each timepoint comparison (pairwise Wilcoxon)
-            p_values_tp_f <- sapply(timepoints, function(tp) {
-                if (sum(female_clean$Timepoint == tp) > 0) {
-                    tryCatch({
-                        wilcox.test(female_clean$mean_rE[female_clean$Timepoint == "TP0"],
-                                    female_clean$mean_rE[female_clean$Timepoint == tp])$p.value
-                    }, error = function(e) NA)
-                } else {
-                    NA
-                }
-            })
-            
-            results <- rbind(results, data.frame(Sex = "Female", Gene = gene, Subpopulation = sup, 
-                                                 P_Value = p_value_f, 
-                                                 TP1_P_Value = p_values_tp_f[1], 
-                                                 TP2_P_Value = p_values_tp_f[2], 
-                                                 TP3_P_Value = p_values_tp_f[3], 
-                                                 TP4_P_Value = p_values_tp_f[4]))
-            
-            if (plot_save == "y") {
-                ggboxplot(female_clean, 
-                          x = "Timepoint", 
-                          y = "mean_rE", 
-                          color = "Timepoint", 
-                          title = title_female,
-                          add = "jitter", 
-                          legend = "none", 
-                          ylab = paste(gene, "expression relative to B2M"), 
-                          width = 0.6, 
-                          add.params = list(size = 1, alpha = 0.5)) +  
-                    geom_hline(yintercept = median_TP0_female, linetype = 2) + 
-                    stat_compare_means(method = "anova", label.y = max(female_clean$mean_rE)) +        
-                    stat_compare_means(label = "p.signif", 
-                                       method = "wilcox", 
-                                       ref.group = "TP0", 
-                                       hide.ns = TRUE, 
-                                       label.y = max(female_clean$mean_rE)) +
-                    scale_color_manual(values = my_colors)
-                
-                file_name_female <- paste0(folder, "/", title_female, ".png")
-                ggsave(filename = file_name_female)
-            }
         }, error = function(e) {
             cat("Error processing", gene, ":", e$message, "\n")
         })
     }
 }
-results$Significance <- sapply(results$P_Value, get_significance)
-results$TP1_Significance <- sapply(results$TP1_P_Value, get_significance)
-results$TP2_Significance <- sapply(results$TP2_P_Value, get_significance)
-results$TP3_Significance <- sapply(results$TP3_P_Value, get_significance)
-results$TP4_Significance <- sapply(results$TP4_P_Value, get_significance)
-ANOVA_Sex <- results 
-# Save ANOVA results with significance levels
-write.csv(ANOVA_Sex, file = "ANOVA_rE_Sex.csv", row.names = FALSE)
-
-#### Healthy vs MILD vs MODERATE --------------------------------------------------------
-folder <- "ANOVA_rE_Category_Plots"
+Timecourse_Wilcox_Sex_Z <- results
+Timecourse_Wilcox_Sex_Z$TP0_Significance <- sapply(Timecourse_Wilcox_Sex_Z$TP0_P_Value, get_significance)
+Timecourse_Wilcox_Sex_Z$TP1_Significance <- sapply(Timecourse_Wilcox_Sex_Z$TP1_P_Value, get_significance)
+Timecourse_Wilcox_Sex_Z$TP2_Significance <- sapply(Timecourse_Wilcox_Sex_Z$TP2_P_Value, get_significance)
+Timecourse_Wilcox_Sex_Z$TP3_Significance <- sapply(Timecourse_Wilcox_Sex_Z$TP3_P_Value, get_significance)
+Timecourse_Wilcox_Sex_Z$TP4_Significance <- sapply(Timecourse_Wilcox_Sex_Z$TP4_P_Value, get_significance)
+write.csv(Timecourse_Wilcox_Sex_Z , file = "Timecourse_Wilcox_Sex_Z_Results.csv", row.names = FALSE)
+    
+ #### Healthy vs MILD vs MODERATE  (Mean ± SEM)* -------------------------------------
+folder <- "Mean_SEM_Category_Plots"
 createFolder(folder)  # Ensure the folder exists
 results <- data.frame(Category = character(), Gene = character(), Subpopulation = character(), 
                       P_Value = numeric(), TP1_P_Value = numeric(), TP2_P_Value = numeric(), 
                       TP3_P_Value = numeric(), TP4_P_Value = numeric())
 
-i <- 1
 for (i in 1:length(unique(data_rE_mean_matched$Gene))) {
-    gene <- unique(data_rE_mean_matched$Gene)[i]  # Use unique to avoid duplicates
+    gene <- unique(data_rE_mean_matched$Gene)[i]
     df_gene <- filter(data_rE_mean_matched, Gene == gene)
-    df_gene <- df_gene %>% filter(!is.na(Timepoint), !is.na(mean_rE), !is.na(Subpopulation), !is.na(Category))
+    df_gene <- df_gene %>% filter(!is.na(Timepoint), !is.na(mean_Z), !is.na(Subpopulation), !is.na(Category))
     
-    j <- 1
     for (j in 1:length(unique(df_gene$Subpopulation))) {
         sup <- unique(df_gene$Subpopulation)[j]
         df_subpop <- filter(df_gene, Subpopulation == sup)
         
-        # Keep TP0 data in both categories
-        df_minor <- df_subpop %>% filter(Category != "MODERATE" | Timepoint == "TP0")
-        df_moderate <- df_subpop %>% filter(Category != "MINOR" | Timepoint == "TP0")
+        # Remove outliers
+        df_subpop_clean <- df_subpop[!df_subpop$mean_Z %in% boxplot.stats(df_subpop$mean_Z)$out, ]
         
-        # Remove outliers for MINOR and MODERATE categories
-        df_minor <- df_minor[!df_minor$mean_rE %in% boxplot.stats(df_minor$mean_rE)$out, ]
-        df_moderate <- df_moderate[!df_moderate$mean_rE %in% boxplot.stats(df_moderate$mean_rE)$out, ]
+        if (nrow(df_subpop_clean) <= 0) next  # Skip if no rows remain
         
-        # Ensure Timepoint is a factor
-        df_minor$Timepoint <- factor(as.vector(df_minor$Timepoint))
-        df_moderate$Timepoint <- factor(as.vector(df_moderate$Timepoint))
-        
-        # Get baseline median for MINOR and MODERATE
-        baseline_mi <- filter(df_minor, Timepoint == "TP0")
-        baseline_mo <- filter(df_moderate, Timepoint == "TP0")
-        
-        median_TP0_mi <- median(baseline_mi$mean_rE, na.rm = TRUE)
-        median_TP0_mo <- median(baseline_mo$mean_rE, na.rm = TRUE)
-        
-        # ANOVA
-        if (nrow(df_minor) > 1) {  # Check if there are enough rows for ANOVA
-            anova_mi <- aov(mean_rE ~ Timepoint, data = df_minor)
-            p_value_mi <- summary(anova_mi)[[1]]$"Pr(>F)"[1]
-        } else {
-            p_value_mi <- NA  # Handle cases where ANOVA cannot be performed
-        }
-        
-        if (nrow(df_moderate) > 1) {  # Check if there are enough rows for ANOVA
-            anova_mo <- aov(mean_rE ~ Timepoint, data = df_moderate)
-            p_value_mo <- summary(anova_mo)[[1]]$"Pr(>F)"[1]
-        } else {
-            p_value_mo <- NA  # Handle cases where ANOVA cannot be performed
-        }
-        
-        # Store the pairwise Wilcoxon test results for each timepoint
-        results <- rbind(results, data.frame(Category = "MINOR", Gene = gene, Subpopulation = sup, 
-                                             P_Value = p_value_mi, TP1_P_Value = p_values_mi[1], TP2_P_Value = p_values_mi[2], 
-                                             TP3_P_Value = p_values_mi[3], TP4_P_Value = p_values_mi[4]))
-        
-        results <- rbind(results, data.frame(Category = "MODERATE", Gene = gene, Subpopulation = sup, 
-                                             P_Value = p_value_mo, TP1_P_Value = p_values_mo[1], TP2_P_Value = p_values_mo[2], 
-                                             TP3_P_Value = p_values_mo[3], TP4_P_Value = p_values_mo[4]))
-        # if we want the plots:
-        if (plot_save == "y") {
-            # MINOR
-            titel <- paste(gene, " expression in ",sup," monocytes (Minor) (LinReg, rE)", sep="")
-            ggboxplot(df_minor, 
-                      x = "Timepoint", 
-                      y = "mean_rE", 
-                      color = "Timepoint", 
-                      title = titel,
-                      add = "jitter", 
-                      legend = "none", 
-                      ylab = paste(gene, "expression relative to B2M"), 
-                      width = 0.6, 
-                      add.params = list(size = 1, alpha = 0.5)) +   
-                geom_hline(yintercept = median_TP0_mi, linetype = 2) + 
-                stat_compare_means(method = "anova", label.y = max(df_minor$mean_rE)) +        
-                stat_compare_means(label = "p.signif", 
-                                   method = "wilcox", 
-                                   ref.group = "TP0", 
-                                   hide.ns = TRUE, 
-                                   label.y = max(df_minor$mean_rE)) +
-                scale_color_manual(values = my_colors)
-            # save
-            file_name <- paste("ANOVA_rE_Category/",titel, ".png", sep = "")
-            ggsave(filename=file_name)
+        tryCatch({
+            title_facet <- paste(gene, "expression in", sup, "monocytes (Zscored dCT)", sep=" ")
             
-            # MODERATE
-            titel <- paste(gene, " expression in ",sup," monocytes (Moderate) (LinReg, rE)", sep="")
+            # Line plot comparing Male vs Female with mean ± SEM across Timepoints
+            ggline(subset(df_subpop_clean, !is.na(Category)), 
+                   x = "Timepoint", 
+                   y = "mean_Z", 
+                   color = "Category", 
+                   add = "mean_se",  # Add mean and standard error
+                   size = 1.2) +  
+                labs(y = paste(gene, "expression (Z-scored from CT - CT Sample Median)"), 
+                     title = title_facet) +
+                scale_color_manual(values = c("MINOR" = "#A67C00", "MODERATE" = "#700606")) +
+                theme_bw() +  # Apply white background
+                theme(panel.grid.major = element_line(size = 0.2, linetype = 'solid', color = "gray80"), 
+                      panel.grid.minor = element_blank(), 
+                      panel.border = element_blank(),
+                      axis.line = element_line(color = "black")) +
+                stat_compare_means(method = "wilcox.test",  # or "t.test" 
+                                   aes(group = Category),
+                                   label = "p.signif",  
+                                   size = 5) 
             
-            # All together 
-            ggboxplot(df_moderate, 
-                      x = "Timepoint", 
-                      y = "mean_rE", 
-                      color = "Timepoint", 
-                      title = titel,
-                      add = "jitter", 
-                      legend = "none", 
-                      ylab = paste(gene, "expression relative to B2M"), 
-                      width = 0.6, 
-                      add.params = list(size = 1, alpha = 0.5)) +   
-                geom_hline(yintercept = median_TP0_mo, linetype = 2) + 
-                stat_compare_means(method = "anova", label.y = max(df_moderate$mean_rE)) +        
-                stat_compare_means(label = "p.signif", 
-                                   method = "wilcox", 
-                                   ref.group = "TP0", 
-                                   hide.ns = TRUE, 
-                                   label.y = max(df_moderate$mean_rE)) +
-                scale_color_manual(values = my_colors)
-            # save
-            file_name <- paste("ANOVA_rE_Category/",titel, ".png", sep = "")
-            ggsave(filename=file_name)
-        }  
+            if (plot_save == "y") {
+                file_name_facet <- paste0(folder, "/", title_facet, "_Mean_SEM.png")
+                ggsave(filename = file_name_facet)
+            }
+           
+            # Initialize a list to store p-values for timepoints
+            p_values_list <- list(TP0 = NA, TP1 = NA, TP2 = NA, TP3 = NA, TP4 = NA)
+            
+            # Extract p-values for each timepoint comparison (pairwise Wilcoxon)
+            timepoints <- c("TP0", "TP1", "TP2", "TP3", "TP4")
+            for (tp in timepoints) {
+                minor_values <- df_subpop_clean$mean_Z[df_subpop_clean$Timepoint == tp & df_subpop_clean$Category == "MINOR"]
+                moderate_values <- df_subpop_clean$mean_Z[df_subpop_clean$Timepoint == tp & df_subpop_clean$Category == "MODERATE"]
+                
+                # Perform Wilcoxon test for the comparison of Minor vs Moderate at each timepoint
+                if (length(minor_values) > 0 && length(moderate_values) > 0) {
+                    wilcox_result <- wilcox.test(minor_values, moderate_values)
+                    p_values_list[[tp]] <- wilcox_result$p.value
+                }
+            }
+            
+            # Add results for Male vs Female for all timepoints as a single row
+            results <- rbind(results, data.frame(WilcoxComparison = "Minor vs Moderate", Gene = gene, Subpopulation = sup, 
+                                                 TP0_P_Value = p_values_list[["TP0"]],
+                                                 TP1_P_Value = p_values_list[["TP1"]],
+                                                 TP2_P_Value = p_values_list[["TP2"]],
+                                                 TP3_P_Value = p_values_list[["TP3"]],
+                                                 TP4_P_Value = p_values_list[["TP4"]]))
+            
+        }, error = function(e) {
+            cat("Error processing", gene, ":", e$message, "\n")
+        })
     }
 }
 
-# Add significance levels
-results$TP1_Significance <- sapply(results$TP1_P_Value, get_significance)
-results$TP2_Significance <- sapply(results$TP2_P_Value, get_significance)
-results$TP3_Significance <- sapply(results$TP3_P_Value, get_significance)
-results$TP4_Significance <- sapply(results$TP4_P_Value, get_significance)
-ANOVA_Category <- results
-# Save ANOVA results with significance levels
-write.csv(ANOVA_Category, file = "ANOVA_results/ANOVA_Results_Category.csv", row.names = FALSE)
-
-#### Combine all ANOVA results--------------------------------------------------------
-# ANOVA_dCT$Sex <- "All"
-# ANOVA_dCT$Category <- "All"
-ANOVA_rE$Sex <- "All"
-ANOVA_rE$Category <- "All"
-ANOVA_Sex$Category <- "All"
-ANOVA_Category$Sex <- "All"
-
-ANOVA_All <- rbind(ANOVA_rE, ANOVA_Sex,ANOVA_Category)
-ANOVA_Sig <- ANOVA_All %>% filter(P_Value <= 0.05)
-
-write.csv(ANOVA_All, file = "ANOVA_results/ANOVA_Results_All.csv", row.names = FALSE)
-write.csv(ANOVA_Sig, file = "ANOVA_results/ANOVA_Results_Sig.csv", row.names = FALSE)
-
-# *2WAY ANOVA* ----------------------------------------------------------------------------------------------------
+Timecourse_Wilcox_Category_Z <- results
+Timecourse_Wilcox_Category_Z$TP0_Significance <- sapply(Timecourse_Wilcox_Category_Z$TP0_P_Value, get_significance)
+Timecourse_Wilcox_Category_Z$TP1_Significance <- sapply(Timecourse_Wilcox_Category_Z$TP1_P_Value, get_significance)
+Timecourse_Wilcox_Category_Z$TP2_Significance <- sapply(Timecourse_Wilcox_Category_Z$TP2_P_Value, get_significance)
+Timecourse_Wilcox_Category_Z$TP3_Significance <- sapply(Timecourse_Wilcox_Category_Z$TP3_P_Value, get_significance)
+Timecourse_Wilcox_Category_Z$TP4_Significance <- sapply(Timecourse_Wilcox_Category_Z$TP4_P_Value, get_significance)
+write.csv(Timecourse_Wilcox_Category_Z , file = "Timecourse_Wilcox_Category_Z_Results.csv", row.names = FALSE)
 
 # *Regression* --------------------------------------------------------
 #### Pearson Gene vs Age --------------------------------------------------------
