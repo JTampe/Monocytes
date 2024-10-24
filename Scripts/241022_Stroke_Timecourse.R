@@ -48,6 +48,8 @@ library(beepr)
 thematic_on(bg = "white", fg = "black", accent = "blue")
 
 ### *Functions* ---------------------------------------------------------------------
+my_colors <- c("darkgreen", "orange", "red", "magenta", "purple") 
+my_grey_scale <- c("grey", "black", "black", "black", "black") 
 
 ## Create Folder
 createFolder <- function(folderName) {
@@ -278,22 +280,53 @@ automate_anova_extraction <- function(results_folder, plots_folder, results_name
                                              TP1_P_Value = tp1_p_value, TP2_P_Value = tp2_p_value,
                                              TP3_P_Value = tp3_p_value, TP4_P_Value = tp4_p_value))
         
-        # Generate and save the plot if required
+        # Generate and save the plots if required
         if (plot_save == "y") {
             median_TP0 <- median(df_test[df_test[[timepoint_col]] == "TP0", var_name], na.rm = TRUE)
             my_colors <- c("darkgreen", "orange", "red", "magenta", "purple")
             
-            plot <- ggboxplot(df_test, x = timepoint_col, y = var_name, color = timepoint_col, 
-                              add = "jitter", legend = "none", 
-                              ylab = paste(var_name, "percentage"), width = 0.8, 
-                              add.params = list(size = 1, alpha = 0.5)) +
+            # Boxplot generation
+            box_plot <- ggboxplot(df_test, x = timepoint_col, y = var_name, color = timepoint_col, 
+                                  add = "jitter", legend = "none", 
+                                  ylab = paste(var_name, "percentage"), width = 0.8, 
+                                  add.params = list(size = 1, alpha = 0.5)) +
                 geom_hline(yintercept = median_TP0, linetype = 2) +
-                stat_compare_means(method = "wilcox", label.y = max(df_test[[var_name]])) +
+                stat_compare_means(label = "p.signif", 
+                                   method = "wilcox", 
+                                   ref.group = "TP0", 
+                                   hide.ns = TRUE, 
+                                   label.y = max(df_test[[var_name]])) +
                 scale_color_manual(values = my_colors)
             
-            # Save the plot
-            file_name <- file.path(plots_folder, paste(var_name, "_Wilcox.png", sep = ""))
-            ggsave(filename = file_name, plot = plot)
+            # Save boxplot
+            boxplot_file_name <- file.path(plots_folder, paste(var_name, "_Boxplot_Wilcox.png", sep = ""))
+            ggsave(filename = boxplot_file_name, plot = box_plot)
+            
+            # Barplot generation with SEM
+            mean_values <- df_test %>%
+                group_by(get(timepoint_col)) %>%
+                summarise(mean_value = mean(get(var_name), na.rm = TRUE),
+                          sd_value = sd(get(var_name), na.rm = TRUE),
+                          n = n()) %>%
+                mutate(SEM = sd_value / sqrt(n)) %>%
+                rename(Timepoint = `get(timepoint_col)`)
+            
+            #my_grey_scale <- c("grey", "black", "black", "black", "black") 
+            
+            # Barplot with SEM and significance
+            bar_plot <- ggbarplot(mean_values, x = "Timepoint", y = "mean_value", fill = "Timepoint",
+                                  ylab = paste(var_name, "mean value"), 
+                                  add = "mean_se", width = 0.8) +
+                scale_fill_manual(values = my_colors) +
+                geom_errorbar(aes(ymin = mean_value - SEM, ymax = mean_value + SEM), width = 0.2) +
+                stat_compare_means(data = df_test, aes(x = get(timepoint_col), y = get(var_name)),
+                                   method = "wilcox", ref.group = "TP0", hide.ns = TRUE,
+                                   label = "p.signif", label.y = max(mean_values$mean_value) + 0.1 * max(mean_values$mean_value))
+            
+            # Save barplot
+            barplot_file_name <- file.path(plots_folder, paste(var_name, "_Barplot_Wilcox_SEM.png", sep = ""))
+            ggsave(filename = barplot_file_name, plot = bar_plot)
+            
         }
     }
     
@@ -772,7 +805,7 @@ dataFINAL$DaysPS[grep("TP4",dataFINAL$Timepoint)]  <- 90
 ## MEAN values for the ANOVA & so ----------------
 dataFINALmean <- dataFINAL %>%
         group_by(SampleID, Sex, Age, Category, Timepoint, DaysPS,
-                 Subpopulation, Gene, GeneID) %>%
+                 Subpopulation, Gene, GeneID, Gene_Group) %>%
         summarise(mean_CT = mean(CT), sd_CT = sd(CT),
                   mean_dCT = mean(dCT_median), sd_dCT = sd(dCT_median),
                   mean_Z = mean(inverted_z_score), sd_Z = sd(inverted_z_score),
@@ -1073,12 +1106,18 @@ for (i in 4:16) {
 write.csv(Age_correlation_FACS, "Age_correlation_FACS.csv", row.names = FALSE)
 
 # *1WAY ANOVA* FACS----------------------------------------------------------------------------------------------------
-data_FACS_mean_matched <- dataFINALmean %>%
+# with wilcox
+ANOVA_FACSall <- automate_anova_extraction(output_location, "Wilcox_FACS_Plots", 
+                                                  "Wilcox_FACS", "y", FACSdata, colnames(FACSdata)[4:16], 
+                                                  "Timepoint")
+# paired t.test
+FACSdata_matched <- FACSdata %>%
     filter(!SampleID %in% Unmatched_TP0_FACS)
 
-Age_correlation_FACs <- automate_anova_extraction(output_location, "Wilcox_FACS_Plots", 
-                          "Wilcox_FACS", "y", FACSdata, colnames(FACSdata)[4:16], 
+paired_Ttest_FACS <- automate_ttest_extraction(output_location, "paired_Ttest_FACS_Plots",
+                          "paired_Ttest_FACS", "y", FACSdata_matched, colnames(FACSdata_matched)[4:16],
                           "Timepoint")
+
 
 # *Gene Expr. statistics* ----------------------------------------------------------------------------------------------------
 # As they are non-normal disributed, dependent with similar variance
