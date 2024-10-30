@@ -1,8 +1,8 @@
 # *Dotplot of significant genes Genes* -----------------------------------------------------------------------------
 # remove the non-interestoiing genes
-Wilcox_rE_sig <- Wilcox_rE %>% filter(Wilcox_rE$P_Value <0.05)
+Wilcox_capZ_sig <- Wilcox_capZ %>% filter(Wilcox_capZ$P_Value <0.05)
 
-significant_Genes <- unique(Wilcox_rE_sig$Gene)
+significant_Genes <- unique(Wilcox_capZ_sig$Gene)
 
 dataFINALmean_sigGENES<- dataFINALmean %>%
     filter(Gene %in% significant_Genes & !Gene %in% c("ACTB", "B2M", "GAPDH"))
@@ -22,7 +22,7 @@ data_summary2 <- data_summary2 %>%
 # Create a linear gradient function for the original plots
 linear_gradient <- function() {
     # Define the colors for the gradient
-    colors <- c("blue", "purple", "red") 
+    colors <- c("blue", "white", "red") 
     
     # Set the breakpoints for the gradient (-1.2 to 1.2)
     scale_color_gradientn(colors = colors,
@@ -32,7 +32,7 @@ linear_gradient <- function() {
 }
 
 ggplot(data_summary, aes(x = Sample_Combo, y = Gene_Combined)) +
-    geom_point(aes(size = Dot_Size, color = mean_Z)) +  # Use Dot_Size for scaling
+    geom_point(aes(size = Dot_Size, color = mean_capZ)) +  # Use Dot_Size for scaling
     scale_size(range = c(1, 5)) +  # Size range reflects 1-5 scaling
     linear_gradient() +  # Use the custom linear gradient
     theme_minimal() +
@@ -51,7 +51,7 @@ ggplot(data_summary, aes(x = Sample_Combo, y = Gene_Combined)) +
 ggsave(filename = "Dotplots_significant_Genes_summary/Exp_by_TP.png")
 
 ggplot(data_summary2, aes(x = Sample_Combo2, y = Gene_Combined)) +
-    geom_point(aes(size = Dot_Size, color = mean_Z)) +  # Use Dot_Size for scaling
+    geom_point(aes(size = Dot_Size, color = mean_capZ)) +  # Use Dot_Size for scaling
     scale_size(range = c(1, 5)) +  # Size range reflects 1-5 scaling
     linear_gradient() +  # Use the custom linear gradient
     theme_minimal() +
@@ -82,7 +82,7 @@ linear_gradient <- function() {
 }
 
 ggplot(data_summary, aes(x = Sample_Combo, y = Gene_Combined)) +
-    geom_point(aes(size = Dot_Size, color = mean_Z)) +  # Use Dot_Size for scaling
+    geom_point(aes(size = Dot_Size, color = mean_capZ)) +  # Use Dot_Size for scaling
     scale_size(range = c(1, 5)) +  # Size range reflects 1-5 scaling
     linear_gradient() +  # Use the custom linear gradient
     theme_minimal() +
@@ -101,7 +101,7 @@ ggplot(data_summary, aes(x = Sample_Combo, y = Gene_Combined)) +
 ggsave(filename = "Dotplots_significant_Genes_summary/Exp_by_TP_grey.png")
 
 ggplot(data_summary2, aes(x = Sample_Combo2, y = Gene_Combined)) +
-    geom_point(aes(size = Dot_Size, color = mean_Z)) +  # Use Dot_Size for scaling
+    geom_point(aes(size = Dot_Size, color = mean_capZ)) +  # Use Dot_Size for scaling
     scale_size(range = c(1, 5)) +  # Size range reflects 1-5 scaling
     linear_gradient() +  # Use the custom linear gradient
     theme_minimal() +

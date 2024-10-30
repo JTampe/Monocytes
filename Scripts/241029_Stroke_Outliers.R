@@ -1041,7 +1041,7 @@ data_summary2 <- data_summary2 %>%
 # Create a linear gradient function for the original plots
 linear_gradient <- function() {
     # Define the colors for the gradient
-    colors <- c("blue", "purple", "red")
+    colors <- c("blue", "white", "red")
     
     # Set the breakpoints for the gradient (-1.2 to 1.2)
     scale_color_gradientn(colors = colors,
@@ -1192,7 +1192,7 @@ Age_correlation_FACS <- data.frame(Cells = character(), Timepoint = character(),
 FACSdata <- FACSdata[!is.na(FACSdata$Age), ]
 
 # Main loop for each column
-for (i in 12:16) {
+for (i in 4:16) {
     cells_colname <- colnames(FACSdata)[i]
     
     # All samples
@@ -1447,108 +1447,24 @@ write.csv(results_FACS_Wilcox, file = "results_FACS_Wilcox.csv", row.names = FAL
 # *Gene Expr. statistics* ----------------------------------------------------------------------------------------------------
 # As they are non-normal disributed, dependent with similar variance
 # Adjust to yes if you want plots to be saved or n if not
-plot_save <- "y"
+plot_save <- "n"
 
 # remove unmatched CTR for ANOVA too 
-data_rE_mean_matched <- dataFINALmean %>%
+data_mean_matched <- dataFINALmean %>%
     filter(!(Timepoint == "TP0" & !SampleID %in% Matched_TP0_Gene))
 # Check if all groups have the same size:
-check_sample_counts(data_rE_mean_matched)
-
-#### Wilcox test for rE of Genes --------------------------------------------------
-folder <- "Wilcox_rE_Plots"
-results <- data.frame(Gene = character(), Subpopulation = character(), P_Value = numeric(),
-                      TP1_P_Value = numeric(), TP2_P_Value = numeric(), TP3_P_Value = numeric(), TP4_P_Value = numeric())
-
-j = 1
-for (j in 1:length(unique(data_rE_mean_matched$Gene))) {
-    gene <- data_rE_mean_matched$Gene[j]
-    df_gene <- filter(data_rE_mean_matched, Gene == gene)
-    df_gene <- df_gene %>% filter(!is.na(Category), !is.na(mean_rE), !is.na(Subpopulation), !is.na(Timepoint))
-    i = 1
-    for (i in 1:length(unique(df_gene$Subpopulation))) {
-        sup <- df_gene$Subpopulation[i]
-        df <- filter(df_gene, Subpopulation == sup)
-        if (nrow(df) <= 0 || gene %in% exclude_genes) {
-            cat("Skipping:", gene, "for subpopulation:", sup, "due to insufficient data or in excluded genes list\n")
-            next  # Skip to the next iteration of the loop
-        }
-        
-        df <- df[!df$mean_rE %in% boxplot.stats(df$mean_rE)$out, ]
-        df$Timepoint <- factor(as.vector(df$Timepoint))
-        baseline <- filter(df, Timepoint == "TP0")
-        median_TP0 <- median(baseline$mean_rE)
-        
-        # Perform Wilcoxon test for each comparison with TP0
-        timepoints <- c("TP1", "TP2", "TP3", "TP4")
-        tp_p_values <- c(NA, NA, NA, NA)  # Initialize p-values for TP1 to TP4
-        
-        # Loop through each timepoint and compare to TP0
-        for (tp in seq_along(timepoints)) {
-            comparison_tp <- timepoints[tp]
-            
-            # Check if there are enough data for both TP0 and the current timepoint
-            if (nrow(filter(df, Timepoint == comparison_tp)) > 1 && nrow(baseline) > 1) {
-                # Perform Wilcoxon test between TP0 and the current timepoint
-                test_result <- wilcox.test(df$mean_rE[df$Timepoint == "TP0"], 
-                                           df$mean_rE[df$Timepoint == comparison_tp],
-                                           paired = FALSE, exact = FALSE)
-                tp_p_values[tp] <- test_result$p.value  # Store the p-value
-            }
-        }
-        
-        # Save results to data frame
-        results <- rbind(results, data.frame(Gene = gene, Subpopulation = sup, 
-                                             P_Value = min(tp_p_values, na.rm = TRUE),  # Store the smallest p-value as general
-                                             TP1_P_Value = tp_p_values[1], 
-                                             TP2_P_Value = tp_p_values[2], 
-                                             TP3_P_Value = tp_p_values[3], 
-                                             TP4_P_Value = tp_p_values[4]))
-        
-        if (plot_save == "y") {
-            my_colors <- c("darkgreen", "orange", "red", "magenta", "purple") 
-            
-            ggboxplot(df, 
-                      x = "Timepoint", 
-                      y = "mean_rE", 
-                      color = "Timepoint", 
-                      add = "jitter", 
-                      legend = "none", 
-                      ylab = paste(gene, "expression relative to the geometric Mean"), 
-                      width = 0.8, 
-                      add.params = list(size = 1, alpha = 0.5)) +  
-                geom_hline(yintercept = median_TP0, linetype = 2) + 
-                #stat_compare_means(method = "wilcox", label.y = max(df$mean_rE)) +        
-                stat_compare_means(label = "p.signif", 
-                                   method = "wilcox", 
-                                   ref.group = "TP0", 
-                                   hide.ns = TRUE, 
-                                   label.y = max(df$mean_rE)) +
-                scale_color_manual(values = my_colors)
-            
-            file_name <- file.path(folder, paste(gene,"_", sup, "_rE_Wilcoxon.png", sep = ""))
-            ggsave(filename = file_name)
-        }
-    }
-}
-Wilcox_rE <- results
-Wilcox_rE$Significance <- sapply(Wilcox_rE$P_Value, get_significance)
-Wilcox_rE$TP1_Significance <- sapply(Wilcox_rE$TP1_P_Value, get_significance)
-Wilcox_rE$TP2_Significance <- sapply(Wilcox_rE$TP2_P_Value, get_significance)
-Wilcox_rE$TP3_Significance <- sapply(Wilcox_rE$TP3_P_Value, get_significance)
-Wilcox_rE$TP4_Significance <- sapply(Wilcox_rE$TP4_P_Value, get_significance)
-write.csv(Wilcox_rE, file = "Wilcox_Results_rE.csv", row.names = FALSE)
+check_sample_counts(data_mean_matched)
 
 #### Wilcox test for Z of Genes --------------------------------------------------
 folder <- "Wilcox_Z_Plots_unpaired"
 results <- data.frame(Gene = character(), Subpopulation = character(), P_Value = numeric(),
                       TP1_P_Value = numeric(), TP2_P_Value = numeric(), TP3_P_Value = numeric(), TP4_P_Value = numeric())
-check_sample_counts(data_rE_mean_matched)
+check_sample_counts(data_mean_matched)
 
 j = 1
-for (j in 1:length(unique(data_rE_mean_matched$Gene))) {
-    gene <- data_rE_mean_matched$Gene[j]
-    df_gene <- filter(data_rE_mean_matched, Gene == gene)
+for (j in 1:length(unique(data_mean_matched$Gene))) {
+    gene <- data_mean_matched$Gene[j]
+    df_gene <- filter(data_mean_matched, Gene == gene)
     df_gene <- df_gene %>% filter(!is.na(Category), !is.na(mean_capZ), !is.na(Subpopulation), !is.na(Timepoint))
     i = 1
     for (i in 1:length(unique(df_gene$Subpopulation))) {
@@ -1584,12 +1500,18 @@ for (j in 1:length(unique(data_rE_mean_matched$Gene))) {
         }
         
         # Save results to data frame
+        p_value_min <- min(tp_p_values, na.rm = TRUE)
         results <- rbind(results, data.frame(Gene = gene, Subpopulation = sup, 
                                              P_Value = min(tp_p_values, na.rm = TRUE),  # Store the smallest p-value as general
                                              TP1_P_Value = tp_p_values[1], 
                                              TP2_P_Value = tp_p_values[2], 
                                              TP3_P_Value = tp_p_values[3], 
                                              TP4_P_Value = tp_p_values[4]))
+        # Plot only if there is a significant p-value (<= 0.05)
+        plot_save <- "n"
+        if (p_value_min <= 0.05) {
+            plot_save <- "y"
+        }
         
         if (plot_save == "y") {
             my_colors <- c("darkgreen", "orange", "red", "magenta", "purple") 
@@ -1636,104 +1558,7 @@ results$TP4_Significance <- sapply(results$TP4_P_Value, get_significance)
 
 Wilcox_capZ <- results
 write.csv(Wilcox_capZ, file = "Wilcox_Results_capZ_unpaired.csv", row.names = FALSE)
-#### Wilcox test for Z of Genes --------------------------------------------------
-folder <- "Wilcox_Z_Plots_paired"
-results <- data.frame(Gene = character(), Subpopulation = character(), P_Value = numeric(),
-                      TP1_P_Value = numeric(), TP2_P_Value = numeric(), TP3_P_Value = numeric(), TP4_P_Value = numeric())
-check_sample_counts(data_rE_mean_matched)
-
-j = 1
-for (j in 1:length(unique(data_rE_mean_matched$Gene))) {
-    gene <- data_rE_mean_matched$Gene[j]
-    df_gene <- filter(data_rE_mean_matched, Gene == gene)
-    df_gene <- df_gene %>% filter(!is.na(Category), !is.na(mean_capZ), !is.na(Subpopulation), !is.na(Timepoint))
-    i = 1
-    for (i in 1:length(unique(df_gene$Subpopulation))) {
-        sup <- df_gene$Subpopulation[i]
-        df <- filter(df_gene, Subpopulation == sup)
-        if (nrow(df) <= 0 || gene %in% exclude_genes) {
-            cat("Skipping:", gene, "for subpopulation:", sup, "due to insufficient data or in excluded genes list\n")
-            next  # Skip to the next iteration of the loop
-        }
-        
-        # you can only exclud outliers if you are not using paired
-        #df <- df[!df$mean_capZ %in% boxplot.stats(df$mean_capZ)$out, ]
-        df$Timepoint <- factor(as.vector(df$Timepoint))
-        baseline <- filter(df, Timepoint == "TP0")
-        median_TP0 <- median(baseline$mean_capZ)
-        
-        # Perform Wilcoxon test for each comparison with TP0
-        timepoints <- c("TP1", "TP2", "TP3", "TP4")
-        tp_p_values <- c(NA, NA, NA, NA)  # Initialize p-values for TP1 to TP4
-        
-        # Loop through each timepoint and compare to TP0
-        for (tp in seq_along(timepoints)) {
-            comparison_tp <- timepoints[tp]
-            
-            # Check if there are enough data for both TP0 and the current timepoint
-            if (nrow(filter(df, Timepoint == comparison_tp)) > 1 && nrow(baseline) > 1) {
-                # Perform Wilcoxon test between TP0 and the current timepoint
-                test_result <- wilcox.test(df$mean_capZ[df$Timepoint == "TP0"], 
-                                           df$mean_capZ[df$Timepoint == comparison_tp],
-                                           paired = TRUE, exact = TRUE)
-                tp_p_values[tp] <- test_result$p.value  # Store the p-value
-            }
-        }
-        
-        # Save results to data frame
-        results <- rbind(results, data.frame(Gene = gene, Subpopulation = sup, 
-                                             P_Value = min(tp_p_values, na.rm = TRUE),  # Store the smallest p-value as general
-                                             TP1_P_Value = tp_p_values[1], 
-                                             TP2_P_Value = tp_p_values[2], 
-                                             TP3_P_Value = tp_p_values[3], 
-                                             TP4_P_Value = tp_p_values[4]))
-        
-        if (plot_save == "y") {
-            my_colors <- c("darkgreen", "orange", "red", "magenta", "purple") 
-            
-            # Create a boxplot with significance levels
-            p <- ggboxplot(df, 
-                           x = "Timepoint", 
-                           y = "mean_capZ", 
-                           color = "Timepoint", 
-                           add = "jitter", 
-                           legend = "none", 
-                           ylab = paste(gene, "expression relative to the geometric Mean"), 
-                           width = 0.8, 
-                           add.params = list(size = 1, alpha = 0.5)) +  
-                geom_hline(yintercept = median_TP0, linetype = 2) 
-            
-            # Add significance levels based on Wilcoxon tests
-            for (tp in seq_along(timepoints)) {
-                comparison_tp <- timepoints[tp]
-                p_value <- tp_p_values[tp]
-                
-                if (!is.na(p_value)) {
-                    # Use 'p' for raw p-value or 'p.signif' for significance symbols
-                    p <- p + stat_compare_means(method = "wilcox", 
-                                                ref.group = "TP0", 
-                                                hide.ns = TRUE, 
-                                                label = "p.signif",  # You can use 'p.signif' if you prefer symbols
-                                                label.y = max(df$mean_capZ))  # Adjust label.y as needed
-                }
-            }
-            
-            # Save the plot
-            file_name <- file.path(folder, paste(gene, "_", sup, "_capZ_Wilcoxon.png", sep = ""))
-            ggsave(filename = file_name, plot = p)
-        }
-        
-    }
-}
-results$Significance <- sapply(results$P_Value, get_significance)
-results$TP1_Significance <- sapply(results$TP1_P_Value, get_significance)
-results$TP2_Significance <- sapply(results$TP2_P_Value, get_significance)
-results$TP3_Significance <- sapply(results$TP3_P_Value, get_significance)
-results$TP4_Significance <- sapply(results$TP4_P_Value, get_significance)
-
-Wilcox_capZ_paired <- results
-write.csv(Wilcox_capZ_paired, file = "Wilcox_Results_capZ_paired.csv", row.names = FALSE)
-
+#### Sig Wilcox capZ -------------------------------------------------
 
 #### ANOVA for Zscore with Baseline --------------------------------------------------
 # ANOVA repeated mesures as we have dependent, normally distributed values with similar varaiance
@@ -1741,9 +1566,9 @@ folder <- "ANOVA_Zscore_Plots"
 results <- data.frame(Gene = character(), Subpopulation = character(), P_Value = numeric(),
                       TP1_P_Value = numeric(), TP2_P_Value = numeric(), TP3_P_Value = numeric(), TP4_P_Value = numeric())
 j = 1
-for (j in 1:length(unique(data_rE_mean_matched$Gene))) {
-    gene <- data_rE_mean_matched$Gene[j]
-    df_gene <- filter(data_rE_mean_matched, Gene == gene)
+for (j in 1:length(unique(data_mean_matched$Gene))) {
+    gene <- data_mean_matched$Gene[j]
+    df_gene <- filter(data_mean_matched, Gene == gene)
     df_gene <- df_gene %>% filter(!is.na(Category), !is.na(mean_capZ), !is.na(Subpopulation), !is.na(Timepoint))
     i=1
     for (i in 1:length(unique(df_gene$Subpopulation))) {
@@ -1836,15 +1661,15 @@ ANOVA_Zscore$TP4_Significance <- sapply(ANOVA_Zscore$TP4_P_Value, get_significan
 write.csv(ANOVA_Zscore, file = "ANOVA_Results_Zscore.csv", row.names = FALSE)
 
 #### *Male vs Female Analysis (Mean ± SEM)* -------------------------------------
-folder <- "Mean_SEM_Sex_Plots"
+folder <- "Mean_SEM_capZ_Sex_Plots"
 createFolder(folder)  # Ensure the folder exists
 results <- data.frame(Sex = character(), Gene = character(), Subpopulation = character(), 
                       P_Value = numeric(), TP1_P_Value = numeric(), TP2_P_Value = numeric(), 
                       TP3_P_Value = numeric(), TP4_P_Value = numeric())
 
-for (i in 1:length(unique(data_rE_mean_matched$Gene))) {
-    gene <- unique(data_rE_mean_matched$Gene)[i]
-    df_gene <- filter(data_rE_mean_matched, Gene == gene)
+for (i in 1:length(unique(data_mean_matched$Gene))) {
+    gene <- unique(data_mean_matched$Gene)[i]
+    df_gene <- filter(data_mean_matched, Gene == gene)
     df_gene <- df_gene %>% filter(!is.na(Timepoint), !is.na(mean_capZ), !is.na(Subpopulation), !is.na(Sex))
     
     for (j in 1:length(unique(df_gene$Subpopulation))) {
@@ -1923,15 +1748,15 @@ Timecourse_Wilcox_Sex_Z$TP4_Significance <- sapply(Timecourse_Wilcox_Sex_Z$TP4_P
 write.csv(Timecourse_Wilcox_Sex_Z , file = "Timecourse_Wilcox_Sex_Z_Results.csv", row.names = FALSE)
     
  #### Healthy vs MILD vs MODERATE  (Mean ± SEM)* -------------------------------------
-folder <- "Mean_SEM_Category_Plots"
+folder <- "Mean_SEM_Category_capZ_Plots"
 createFolder(folder)  # Ensure the folder exists
 results <- data.frame(Category = character(), Gene = character(), Subpopulation = character(), 
                       P_Value = numeric(), TP1_P_Value = numeric(), TP2_P_Value = numeric(), 
                       TP3_P_Value = numeric(), TP4_P_Value = numeric())
 
-for (i in 1:length(unique(data_rE_mean_matched$Gene))) {
-    gene <- unique(data_rE_mean_matched$Gene)[i]
-    df_gene <- filter(data_rE_mean_matched, Gene == gene)
+for (i in 1:length(unique(data_mean_matched$Gene))) {
+    gene <- unique(data_mean_matched$Gene)[i]
+    df_gene <- filter(data_mean_matched, Gene == gene)
     df_gene <- df_gene %>% filter(!is.na(Timepoint), !is.na(mean_capZ), !is.na(Subpopulation), !is.na(Category))
     
     for (j in 1:length(unique(df_gene$Subpopulation))) {
@@ -2015,120 +1840,130 @@ metadataP_FACS <- metadataP %>% filter(!SampleID %in% Unmatched_TP0_FACS)
 Demographics_FACS <- demographics_N_Age_Sex(metadataP_FACS)
 write.csv(Demographics_FACS, file = "Demographics_FACS.csv", row.names = FALSE)
 # for Gene expr.
-metadataP_Gene <- metadataP %>% filter(SampleID %in% unique(data_rE_mean_matched$SampleID))
+metadataP_Gene <- metadataP %>% filter(SampleID %in% unique(data_mean_matched$SampleID))
 Demographics_Gene <- demographics_N_Age_Sex(metadataP_Gene)
 write.csv(Demographics_Gene, file = "Demographics_Gene.csv", row.names = FALSE)
 
 # *Regression* --------------------------------------------------------
 #### Pearson Gene vs Age --------------------------------------------------------
 
-createFolder("LinReg_Results")
+createFolder("LinReg_Results_capZ")
 
 # Pearson's Correlation uses linear relationship to correlate the data
-Age_correlation_rE <- data.frame(Subpopulation = character(), Timepoint = character(), Gene = character(), GeneID = numeric(), Gene_Group = character(), N = numeric(), p.value = numeric(), Estimate = numeric(), Est_CI_Lower = numeric(), Est_CI_Upper = numeric(), Coefficient = numeric(), Coef_CI_Lower = numeric(), Coef_CI_Upper = numeric())
+# Initialize dataframes to store correlation results
+Age_correlation_capZ <- data.frame(Subpopulation = character(), Timepoint = character(), Gene = character(), GeneID = numeric(), Gene_Group = character(), N = numeric(), p.value = numeric(), Estimate = numeric(), Est_CI_Lower = numeric(), Est_CI_Upper = numeric(), Coefficient = numeric(), Coef_CI_Lower = numeric(), Coef_CI_Upper = numeric())
 
-Age_correlation_Sex_rE <- data.frame(Subpopulation = character(), Sex = character(), Timepoint = character(), Gene = character(), GeneID = numeric(), Gene_Group = character(), N = numeric(), p.value = numeric(), Estimate = numeric(), Est_CI_Lower = numeric(), Est_CI_Upper = numeric(), Coefficient = numeric(), Coef_CI_Lower = numeric(), Coef_CI_Upper = numeric())
+Age_correlation_Sex_capZ <- data.frame(Subpopulation = character(), Sex = character(), Timepoint = character(), Gene = character(), GeneID = numeric(), Gene_Group = character(), N = numeric(), p.value = numeric(), Estimate = numeric(), Est_CI_Lower = numeric(), Est_CI_Upper = numeric(), Coefficient = numeric(), Coef_CI_Lower = numeric(), Coef_CI_Upper = numeric())
 
 for (gene in unique(dataFINALmean$Gene)) {
     df <- dataFINALmean %>% filter(Gene == gene)
     df <- df %>% filter(!is.na(Timepoint), !is.na(mean_capZ), !is.na(Subpopulation), !is.na(Sex))
-  for (subpop in unique(df$Subpopulation)) {
-    df_subpop <- df %>% filter(Subpopulation == subpop)
-    for (tp in unique(df_subpop$Timepoint)) {
-      df_tp <- df_subpop %>% filter(Timepoint== tp)
-    if (nrow(df_tp) <= 0) {
-      next
-    }
-    tryCatch({
-      x <- cor.test(df_tp$mean_capZ, df_tp$Age)
-      row <- data.frame(
-        Subpopulation = subpop,
-        Timepoint = tp,
-        Gene = gene,
-        GeneID = df_tp$GeneID[1],
-        Gene_Group = df_tp$Gene_Group[1],
-        N = nrow(df_tp),
-        p.value = x$p.value,
-        Estimate = x$estimate,
-        Est_CI_Lower = x$conf.int[1],
-        Est_CI_Upper = x$conf.int[2],
-        Coefficient = NA,
-        Coef_CI_Lower = NA,
-        Coef_CI_Upper = NA  
-      )
-      
-      # Linear regression to get the coefficient and its CI
-      lm_result <- lm(mean_capZ ~ Age, data = df_tp)
-      coef_x <- summary(lm_result)$coefficients[2, 1]
-      ci <- confint(lm_result)[2, ]
-      
-      # Update the row with the coefficient and its CI
-      row$Coefficient <- coef_x
-      row$Coef_CI_Lower <- ci[1]
-      row$Coef_CI_Upper <- ci[2]
-      
-      Age_correlation_rE <- rbind(Age_correlation_rE, row)
-    }, error = function(e) {
-      cat("Error in Pearson's Correlation for gene", genes[i], "& Subpopulation with Age", subpop, "- skipping this comparison.\n")
-    })
-      for (sex in unique(df_tp$Sex)) {
-      df_sex <- df_tp %>% filter(Sex == sex)
-    if (nrow(df_sex) <= 0) {
-      next
-    }
-    tryCatch({
-        x <- cor.test(df_sex$mean_capZ, df_sex$Age)
-        row <- data.frame(
-          Subpopulation = subpop,
-          Sex = sex,
-          Timepoint = tp,
-          Gene = gene,
-          GeneID = df_sex$GeneID[1],
-          Gene_Group = df_sex$Gene_Group[1],
-          N = nrow(df_sex),
-          p.value = x$p.value,
-          Estimate = x$estimate,
-          Est_CI_Lower = x$conf.int[1],
-          Est_CI_Upper = x$conf.int[2],
-          Coefficient = NA, 
-          Coef_CI_Lower = NA, 
-          Coef_CI_Upper = NA  
-        )
+    
+    for (subpop in unique(df$Subpopulation)) {
+        df_subpop <- df %>% filter(Subpopulation == subpop)
         
-        # Linear regression to get the coefficient and its CI
-        lm_result_sex <- lm(mean_capZ ~ Age, data = df_sex)
-        coef_x <- summary(lm_result_sex)$coefficients[2, 1]
-        ci <- confint(lm_result_sex)[2, ]
-        
-        # Update the row with the coefficient and its CI
-        row$Coefficient <- coef_x
-        row$Coef_CI_Lower <- ci[1]
-        row$Coef_CI_Upper <- ci[2]
-        
-        Age_correlation_Sex_rE <- rbind(Age_correlation_Sex_rE, row)
-      }, error = function(e) {
-        cat("Error for ", gene, ", ", tp, sex, "&", subpop, "- skipping this comparison.\n")
-      }) 
-      }      
+        for (tp in unique(df_subpop$Timepoint)) {
+            df_tp <- df_subpop %>% filter(Timepoint == tp)
+            if (nrow(df_tp) <= 0) next
+            
+            # Outlier removal
+            lm_initial <- lm(mean_capZ ~ Age, data = df_tp)
+            residuals_values <- residuals(lm_initial)
+            outlier_indices <- which(abs(residuals_values) > (3 * sd(residuals_values)))
+            df_tp_filtered <- df_tp[-outlier_indices, ]
+            
+            if (nrow(df_tp_filtered) < 2) next  # Ensure there are enough data points after outlier removal
+            
+            tryCatch({
+                # Pearson's correlation
+                x <- cor.test(df_tp_filtered$mean_capZ, df_tp_filtered$Age)
+                row <- data.frame(
+                    Subpopulation = subpop,
+                    Timepoint = tp,
+                    Gene = gene,
+                    GeneID = df_tp_filtered$GeneID[1],
+                    Gene_Group = df_tp_filtered$Gene_Group[1],
+                    N = nrow(df_tp_filtered),
+                    p.value = x$p.value,
+                    Estimate = x$estimate,
+                    Est_CI_Lower = x$conf.int[1],
+                    Est_CI_Upper = x$conf.int[2],
+                    Coefficient = NA,
+                    Coef_CI_Lower = NA,
+                    Coef_CI_Upper = NA  
+                )
+                
+                # Linear regression for coefficient and CI
+                lm_result <- lm(mean_capZ ~ Age, data = df_tp_filtered)
+                coef_x <- summary(lm_result)$coefficients[2, 1]
+                ci <- confint(lm_result)[2, ]
+                
+                row$Coefficient <- coef_x
+                row$Coef_CI_Lower <- ci[1]
+                row$Coef_CI_Upper <- ci[2]
+                
+                Age_correlation_capZ <- rbind(Age_correlation_capZ, row)
+            }, error = function(e) {
+                cat("Error in Pearson's Correlation for gene", gene, "& Subpopulation with Age", subpop, "- skipping this comparison.\n")
+            })
+            
+            for (sex in unique(df_tp_filtered$Sex)) {
+                df_sex <- df_tp_filtered %>% filter(Sex == sex)
+                if (nrow(df_sex) <= 0) next
+                
+                tryCatch({
+                    # Pearson's correlation for Sex
+                    x <- cor.test(df_sex$mean_capZ, df_sex$Age)
+                    row <- data.frame(
+                        Subpopulation = subpop,
+                        Sex = sex,
+                        Timepoint = tp,
+                        Gene = gene,
+                        GeneID = df_sex$GeneID[1],
+                        Gene_Group = df_sex$Gene_Group[1],
+                        N = nrow(df_sex),
+                        p.value = x$p.value,
+                        Estimate = x$estimate,
+                        Est_CI_Lower = x$conf.int[1],
+                        Est_CI_Upper = x$conf.int[2],
+                        Coefficient = NA,
+                        Coef_CI_Lower = NA,
+                        Coef_CI_Upper = NA  
+                    )
+                    
+                    # Linear regression for coefficient and CI
+                    lm_result_sex <- lm(mean_capZ ~ Age, data = df_sex)
+                    coef_x <- summary(lm_result_sex)$coefficients[2, 1]
+                    ci <- confint(lm_result_sex)[2, ]
+                    
+                    row$Coefficient <- coef_x
+                    row$Coef_CI_Lower <- ci[1]
+                    row$Coef_CI_Upper <- ci[2]
+                    
+                    Age_correlation_Sex_capZ <- rbind(Age_correlation_Sex_capZ, row)
+                }, error = function(e) {
+                    cat("Error for", gene, tp, sex, "&", subpop, "- skipping this comparison.\n")
+                }) 
+            }
+        }
     }
-  }
-  }
+}
 
-file_name <- "LinReg_Results/Pearson's Correlation_Age_rE.csv"
-write.csv(Age_correlation_rE, file_name, row.names = FALSE)
+file_name <- "LinReg_Results_capZ/Pearson's Correlation_Age_capZ.csv"
+write.csv(Age_correlation_capZ, file_name, row.names = FALSE)
 
-file_name_s <- "LinReg_Results/Pearson's Correlation_Age_Sex_rE.csv"
-write.csv(Age_correlation_Sex_rE, file_name_s, row.names = FALSE)
+file_name_s <- "LinReg_Results_capZ/Pearson's Correlation_Age_Sex_capZ.csv"
+write.csv(Age_correlation_Sex_capZ, file_name_s, row.names = FALSE)
 
 #### Extract significant LinRegs --------------------------------------------------------
 
-Age_correlation_rE$Sex <- "All"
-All_Age_Pearson_rE <- rbind(Age_correlation_Sex_rE, Age_correlation_rE)
-Age_sigGenes_Pearson <- All_Age_Pearson_rE %>% filter(All_Age_Pearson_rE$p.value <0.05)
-write.csv(Age_sigGenes_Pearson, "LinReg_Results/Age_sigGenes_Pearson.csv", row.names = FALSE)
+Age_correlation_capZ$Sex <- "All"
+All_Age_Pearson_capZ <- rbind(Age_correlation_Sex_capZ, Age_correlation_capZ)
+Age_sigGenes_Pearson <- All_Age_Pearson_capZ %>% filter(All_Age_Pearson_capZ$p.value <0.05)
+write.csv(Age_sigGenes_Pearson, "LinReg_Results_capZ/Age_sigGenes_Pearson.csv", row.names = FALSE)
 
 #### Plot significant LinRegs (F/M) --------------------------------------------------------
-createFolder("LinReg_Sex")
+createFolder("LinReg_Sex_capZ")
 
 i <- 1
 j <- nrow(Age_sigGenes_Pearson)
@@ -2142,7 +1977,7 @@ for (i in 1:j) {
     s <- Age_sigGenes_Pearson$Sex[i]
     if (s=="All"){
         titel <- paste(sig, " expression in ", sub, " monocytes at ", tp," (LinReg, rE, combined)", sep="")
-file_name <- paste("LinReg_Sex/",titel, ".png", sep = "")
+file_name <- paste("LinReg_Sex_capZ/",titel, ".png", sep = "")
     ggplot(data = df, aes(x = Age, y = mean_capZ)) +
   geom_smooth(method = "glm", color = "black") +
   geom_point(aes(color = Sex), size = 2) +
@@ -2166,7 +2001,7 @@ file_name <- paste("LinReg_Sex/",titel, ".png", sep = "")
     
     else {
     titel <- paste(sig, " expression in ",sub," monocytes at ", tp," (",s,") (LinReg, rE)", sep="")
-file_name <- paste("LinReg_Sex/",titel, ".png", sep = "")
+file_name <- paste("LinReg_Sex_capZ/",titel, ".png", sep = "")
 #png(filename=file_name, height=750, width=750)
 ggplot(data = df, aes(x = Age, y = mean_capZ, colour = Sex)) +
     geom_smooth(method = glm) + 
@@ -2191,7 +2026,7 @@ ggplot(data = df, aes(x = Age, y = mean_capZ, colour = Sex)) +
 
 ## Plot significant LinRegs (TPs) --------------------------------------------------------
 
-createFolder("LinReg_TP")
+createFolder("LinReg_TP_capZ")
 
 j <- nrow(Age_sigGenes_Pearson)
 for (i in 1:j) {
@@ -2204,7 +2039,7 @@ for (i in 1:j) {
     s <- Age_sigGenes_Pearson$Sex[i]
     if (s=="All"){
         titel <- paste(sig, " expression in ", sub, " monocytes at ", tp," (LinReg, rE, combined)", sep="")
-file_name <- paste("LinReg_TP/",titel, ".png", sep = "")
+file_name <- paste("LinReg_TP_capZ/",titel, ".png", sep = "")
     ggplot(data = df, aes(x = Age, y = mean_capZ, colour = Timepoint)) +
   geom_smooth(method = "glm") +
   geom_point(size = 2) +
@@ -2228,7 +2063,7 @@ file_name <- paste("LinReg_TP/",titel, ".png", sep = "")
     else {
         df <- filter(df, Sex == s)
     titel <- paste(sig, " expression in ",sub," monocytes at ", tp," (",s,") (LinReg, rE)", sep="")
-file_name <- paste("LinReg_TP/",titel, ".png", sep = "")
+file_name <- paste("LinReg_TP_capZ/",titel, ".png", sep = "")
 #png(filename=file_name, height=750, width=750)
 ggplot(data = df, aes(x = Age, y = mean_capZ, colour = Timepoint)) +
     geom_smooth(method = glm) + 
@@ -2263,7 +2098,7 @@ for (i in 1:j) {
     s <- Age_sigGenes_Pearson$Sex[i]
     if (s=="All"){
         titel <- paste(sig, " expression in ", sub, " monocytes at ", tp," (LinReg, rE, combined)", sep="")
-file_name <- paste("LinReg_TP_all/",titel, ".png", sep = "")
+file_name <- paste("LinReg_TP_all_capZ/",titel, ".png", sep = "")
     ggplot(data = df, aes(x = Age, y = mean_capZ, colour = Timepoint)) +
   geom_smooth(method = "glm") +
   geom_point(size = 2) +
@@ -2287,7 +2122,7 @@ file_name <- paste("LinReg_TP_all/",titel, ".png", sep = "")
     else {
         df <- filter(df, Sex == s)
     titel <- paste(sig, " expression in ",sub," monocytes at ", tp," (",s,") (LinReg, rE)", sep="")
-file_name <- paste("LinReg_TP_all/",titel, ".png", sep = "")
+file_name <- paste("LinReg_TP_all_capZ/",titel, ".png", sep = "")
 #png(filename=file_name, height=750, width=750)
 ggplot(data = df, aes(x = Age, y = mean_capZ, colour = Timepoint)) +
     geom_smooth(method = glm) + 
@@ -2309,3 +2144,4 @@ ggplot(data = df, aes(x = Age, y = mean_capZ, colour = Timepoint)) +
     #dev.off()
     }
 }
+
