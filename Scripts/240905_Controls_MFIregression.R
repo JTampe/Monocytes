@@ -1600,6 +1600,3 @@ ggplot(data =  df_filtered_sex, aes(x = Age, y = rE_Value, colour = Sex)) +
   }
   i = i + 1
 }
-
-
-
