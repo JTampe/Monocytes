@@ -724,10 +724,11 @@ Metadata_NHISS <- read_excel("Metadata_NHISS.xlsx")
 
 dataAll <- merge(dataEXPAND, metadataP, by = "SampleID", all.x = TRUE)
 #### match the right controls
-Matched_TP0_Gene <- c("Ctr01", "Ctr02", "Ctr08", "Ctr09", "Ctr11", "Ctr14", "Ctr16", "Ctr17", "Ctr18", "Ctr25", "Ctr27", "Ctr29", "Ctr31","Ctr41", "Ctr43")
+#Matched_TP0_Gene <- c("Ctr01", "Ctr02", "Ctr08", "Ctr09", "Ctr11", "Ctr14", "Ctr16", "Ctr17", "Ctr18", "Ctr25", "Ctr27", "Ctr29", "Ctr31","Ctr41", "Ctr43")
+Matched_TP0_Gene <- c("Ctr20", "Ctr07", "Ctr10", "Ctr14", "Ctr25", "Ctr24", "Ctr18", "Ctr19", 
+                      "Ctr08", "Ctr26", "Ctr17", "Ctr09", "Ctr27","Ctr16", "Ctr11")
 
-Unmatched_TP0_FACS <- c("Ctr16", "Ctr21", "Ctr23", "Ctr30", "Ctr39", "Ctr44", 
-                        "Ctr15", "Ctr33")
+Unmatched_TP0_FACS <- c("Ctr16", "Ctr21", "Ctr23", "Ctr30", "Ctr39", "Ctr44", "Ctr33")
 
 
 FACSdata <- as.data.frame(read_excel("241008_StrokeControlMFI_combined.xls", # 241008_StrokeControlMFI_combined.xls for updated one
@@ -854,7 +855,6 @@ initial2$method["Gene1"]<-"none"
 initial2$method["TechnicalReplicate"]<-"none"
 initial2$method["BiologicalReplicate"]<-"none"
 initial2$method["Comment"]<-"none"
-initial2$method["Recovery_old"]<-"none"
 
 #Check again
 initial2$method
@@ -1399,8 +1399,7 @@ write.csv(results_FACS_Wilcox, file = "results_FACS_Wilcox.csv", row.names = FAL
 plot_save <- "n"
 
 # remove unmatched CTR for ANOVA too 
-data_mean_matched <- dataFINALmean %>%
-    filter(!(Timepoint == "TP0" & !SampleID %in% Matched_TP0_Gene))
+data_mean_matched <- dataFINALmean %>% filter(!(Timepoint == "TP0" & !SampleID %in% Matched_TP0_Gene))
 # Check if all groups have the same size:
 check_sample_counts(data_mean_matched)
 
@@ -1508,107 +1507,9 @@ results$TP4_Significance <- sapply(results$TP4_P_Value, get_significance)
 Wilcox_capZ <- results
 write.csv(Wilcox_capZ, file = "Wilcox_Results_capZ_unpaired.csv", row.names = FALSE)
 
-#### ANOVA for Zscore with Baseline --------------------------------------------------
-# ANOVA repeated mesures as we have dependent, normally distributed values with similar varaiance
-folder <- "ANOVA_Zscore_Plots"
-results <- data.frame(Gene = character(), Subpopulation = character(), P_Value = numeric(),
-                      TP1_P_Value = numeric(), TP2_P_Value = numeric(), TP3_P_Value = numeric(), TP4_P_Value = numeric())
-j = 1
-for (j in 1:length(unique(data_mean_matched$Gene))) {
-    gene <- data_mean_matched$Gene[j]
-    df_gene <- filter(data_mean_matched, Gene == gene)
-    df_gene <- df_gene %>% filter(!is.na(Category), !is.na(mean_capZ), !is.na(Subpopulation), !is.na(Timepoint))
-    i=1
-    for (i in 1:length(unique(df_gene$Subpopulation))) {
-        sup <- df_gene$Subpopulation[i]
-        df <- filter(df_gene, Subpopulation == sup)
-        if (nrow(df) <= 0 || gene %in% exclude_genes) {
-            cat("Skipping:", gene, "for subpopulation:", sup, "due to insufficient data or in excluded genes list\n")
-            next  # Skip to the next iteration of the loop
-        }
-        
-        df <- df[!df$mean_capZ %in% boxplot.stats(df$mean_capZ)$out, ]
-        df$Timepoint <- factor(as.vector(df$Timepoint))
-        baseline <- filter(df, Timepoint == "TP0")
-        median_TP0 <- median(baseline$mean_capZ)
-        
-        # Perform ANOVA
-        anova_result <- aov(mean_capZ ~ Timepoint, data = df)
-        
-        # Perform Tukey's post-hoc test
-        tukey_result <- TukeyHSD(anova_result, "Timepoint")
-        
-        # Extract p-values for each timepoint comparison against TP0
-        tp1_p_value <- tukey_result$Timepoint["TP1-TP0", "p adj"]
-        tp2_p_value <- tukey_result$Timepoint["TP2-TP0", "p adj"]
-        tp3_p_value <- tukey_result$Timepoint["TP3-TP0", "p adj"]
-        tp4_p_value <- tukey_result$Timepoint["TP4-TP0", "p adj"]
-        
-        # Save results to data frame
-        results <- rbind(results, data.frame(Gene = gene, Subpopulation = sup, 
-                                             P_Value = summary(anova_result)[[1]]$"Pr(>F)"[1],
-                                             TP1_P_Value = tp1_p_value, TP2_P_Value = tp2_p_value, 
-                                             TP3_P_Value = tp3_p_value, TP4_P_Value = tp4_p_value))
-        
-        if (plot_save == "y") {
-            my_colors <- c("darkgreen", "orange", "red", "magenta", "purple") 
-            
-            ggboxplot(df, 
-                      x = "Timepoint", 
-                      y = "mean_capZ", 
-                      color = "Timepoint", 
-                      add = "jitter", 
-                      legend = "none", 
-                      ylab = paste(gene, "expression (Z-scored from CT - CT Sample Median)"), 
-                      width = 0.8, 
-                      add.params = list(size = 1, alpha = 0.5)) +  
-                geom_hline(yintercept = median_TP0, linetype = 2) + 
-                stat_compare_means(method = "anova", label.y = max(df$mean_capZ)) +        
-                stat_compare_means(label = "p.signif", 
-                                   method = "wilcox", 
-                                   ref.group = "TP0", 
-                                   hide.ns = TRUE, 
-                                   label.y = max(df$mean_capZ)) +
-                scale_color_manual(values = my_colors)
-            
-            file_name <- file.path(folder, paste(gene,"_", sup, "_Zscore_ANOVAwilcox.png", sep = ""))
-            ggsave(filename = file_name)
-            
-            # Timeline plot
-                title_facet <- paste(gene, "expression in", sup, "monocytes (Zscored dCT)", sep=" ")
-                
-            ggline(subset(df), 
-                       x = "Timepoint", 
-                       y = "mean_capZ",  
-                       add = "mean_se",  # Add mean and standard error
-                       size = 1.2) +  
-                    labs(y = paste(gene, "expression (Z-scored from CT - CT Sample Median)"), 
-                         title = title_facet) +
-                    theme_bw() +  # Apply white background
-                    theme(panel.grid.major = element_line(size = 0.2, linetype = 'solid', color = "gray80"), 
-                          panel.grid.minor = element_blank(), 
-                          panel.border = element_blank(),
-                          axis.line = element_line(color = "black")) +
-                    stat_compare_means(label = "p.signif", 
-                                       method = "anova", #wilcox before
-                                       ref.group = "TP0", 
-                                       hide.ns = TRUE, 
-                                       label.y = max(df$mean_capZ))
-                
-                    file_name_facet <- paste0(folder, "/", title_facet, "_Mean_SEM.png")
-                    ggsave(filename = file_name_facet)
-        }
-    }
-}
-ANOVA_Zscore <- results
-ANOVA_Zscore$Significance <- sapply(ANOVA_Zscore$P_Value, get_significance)
-ANOVA_Zscore$TP1_Significance <- sapply(ANOVA_Zscore$TP1_P_Value, get_significance)
-ANOVA_Zscore$TP2_Significance <- sapply(ANOVA_Zscore$TP2_P_Value, get_significance)
-ANOVA_Zscore$TP3_Significance <- sapply(ANOVA_Zscore$TP3_P_Value, get_significance)
-ANOVA_Zscore$TP4_Significance <- sapply(ANOVA_Zscore$TP4_P_Value, get_significance)
-write.csv(ANOVA_Zscore, file = "ANOVA_Results_Zscore.csv", row.names = FALSE)
+#*Wilcox for Comparison at individual TPs -------------------------------------
 
-#### *Male vs Female Analysis (Mean ± SEM)* -------------------------------------
+#### Male vs Female Analysis (Mean ± SEM) -------------------------------------
 folder <- "Mean_SEM_capZ_Sex_Plots"
 createFolder(folder)  # Ensure the folder exists
 results <- data.frame(Sex = character(), Gene = character(), Subpopulation = character(), 
@@ -1784,6 +1685,7 @@ write.csv(Timecourse_Wilcox_Category_Z , file = "Timecourse_Wilcox_Category_Z_Re
 
 #### Good vs Bad Recovery (Mean ± SEM)* -------------------------------------
 folder <- "Mean_SEM_Recovery_capZ_Plots"
+plot_save <- "n"
 createFolder(folder)  # Ensure the folder exists
 results <- data.frame(Recovery = character(), Gene = character(), Subpopulation = character(), 
                       P_Value = numeric(), TP1_P_Value = numeric(), TP2_P_Value = numeric(), 
@@ -1837,18 +1739,18 @@ for (i in 1:length(unique(data_mean_matched$Gene))) {
             # Extract p-values for each timepoint comparison (pairwise Wilcoxon)
             timepoints <- c("TP0", "TP1", "TP2", "TP3", "TP4")
             for (tp in timepoints) {
-                minor_values <- df_subpop_clean$mean_capZ[df_subpop_clean$Timepoint == tp & df_subpop_clean$Recovery == "MINOR"]
-                moderate_values <- df_subpop_clean$mean_capZ[df_subpop_clean$Timepoint == tp & df_subpop_clean$Recovery == "MODERATE"]
+                good_values <- df_subpop_clean$mean_capZ[df_subpop_clean$Timepoint == tp & df_subpop_clean$Recovery == "Good"]
+                bad_values <- df_subpop_clean$mean_capZ[df_subpop_clean$Timepoint == tp & df_subpop_clean$Recovery == "Bad"]
                 
-                # Perform Wilcoxon test for the comparison of Minor vs Moderate at each timepoint
-                if (length(minor_values) > 0 && length(moderate_values) > 0) {
-                    wilcox_result <- wilcox.test(minor_values, moderate_values)
+                # Perform Wilcoxon test for the comparison of Good vs Bad Recovery at each timepoint
+                if (length(good_values) > 0 && length(bad_values) > 0) {
+                    wilcox_result <- wilcox.test(good_values, bad_values)
                     p_values_list[[tp]] <- wilcox_result$p.value
                 }
             }
             
             # Add results for Male vs Female for all timepoints as a single row
-            results <- rbind(results, data.frame(WilcoxComparison = "Minor vs Moderate", Gene = gene, Subpopulation = sup, 
+            results <- rbind(results, data.frame(WilcoxComparison = "Good vs Bad Recovery", Gene = gene, Subpopulation = sup, 
                                                  TP0_P_Value = p_values_list[["TP0"]],
                                                  TP1_P_Value = p_values_list[["TP1"]],
                                                  TP2_P_Value = p_values_list[["TP2"]],
@@ -1869,17 +1771,12 @@ Timecourse_Wilcox_Recovery_Z$TP3_Significance <- sapply(Timecourse_Wilcox_Recove
 Timecourse_Wilcox_Recovery_Z$TP4_Significance <- sapply(Timecourse_Wilcox_Recovery_Z$TP4_P_Value, get_significance)
 write.csv(Timecourse_Wilcox_Recovery_Z , file = "Timecourse_Wilcox_Recovery_Z_Results.csv", row.names = FALSE)
 
+#### All results -----------------
+TP_Wilcox_All_Z <- rbind(Timecourse_Wilcox_Recovery_Z, Timecourse_Wilcox_Category_Z,Timecourse_Wilcox_Sex_Z)
+write.csv(TP_Wilcox_All_Z , file = "TP_comparisons_Wilcox_All_Z_Results.csv", row.names = FALSE)
 
-# *Demographics of Ctr & Patients -----------------------------------------------------------------------------
-
-# for FACS
-metadataP_FACS <- metadataP %>% filter(!SampleID %in% Unmatched_TP0_FACS)
-Demographics_FACS <- demographics_N_Age_Sex(metadataP_FACS)
-write.csv(Demographics_FACS, file = "Demographics_FACS.csv", row.names = FALSE)
-# for Gene expr.
-metadataP_Gene <- metadataP %>% filter(SampleID %in% unique(data_mean_matched$SampleID))
-Demographics_Gene <- demographics_N_Age_Sex(metadataP_Gene)
-write.csv(Demographics_Gene, file = "Demographics_Gene.csv", row.names = FALSE)
+TP_Wilcox_Allsig_Z <- TP_Wilcox_All_Z %>% filter(if_any(4:8, ~ . <= 0.05))
+write.csv(TP_Wilcox_Allsig_Z , file = "TP_comparisons_Wilcox_Allsig_Z_Results.csv", row.names = FALSE)
 
 # *Age Regression* --------------------------------------------------------
 #### Pearson Gene vs Age --------------------------------------------------------
@@ -2145,17 +2042,13 @@ createFolder("LinReg_Plots_NHISS_capZ")
 # Initialize dataframes to store correlation results
 NHISS_correlation_capZ <- data.frame(Subpopulation = character(), Timepoint = character(), Gene = character(), GeneID = numeric(), Gene_Group = character(), N = numeric(), p.value = numeric(), Estimate = numeric(), Est_CI_Lower = numeric(), Est_CI_Upper = numeric(), Coefficient = numeric(), Coef_CI_Lower = numeric(), Coef_CI_Upper = numeric())
 
-NHISS_correlation_Sex_capZ <- data.frame(Subpopulation = character(), Sex = character(), Timepoint = character(), Gene = character(), GeneID = numeric(), Gene_Group = character(), N = numeric(), p.value = numeric(), Estimate = numeric(), Est_CI_Lower = numeric(), Est_CI_Upper = numeric(), Coefficient = numeric(), Coef_CI_Lower = numeric(), Coef_CI_Upper = numeric())
+NHISS_correlation_Recovery_capZ <- data.frame(Subpopulation = character(), Recovery = character(), Timepoint = character(), Gene = character(), GeneID = numeric(), Gene_Group = character(), N = numeric(), p.value = numeric(), Estimate = numeric(), Est_CI_Lower = numeric(), Est_CI_Upper = numeric(), Coefficient = numeric(), Coef_CI_Lower = numeric(), Coef_CI_Upper = numeric())
 
 NHISS_correlation_Category_capZ <- data.frame(Subpopulation = character(), Category = character(), Timepoint = character(), Gene = character(), GeneID = numeric(), Gene_Group = character(), N = numeric(), p.value = numeric(), Estimate = numeric(), Est_CI_Lower = numeric(), Est_CI_Upper = numeric(), Coefficient = numeric(), Coef_CI_Lower = numeric(), Coef_CI_Upper = numeric())
 
-gene = "TLR8"
-subpop = "all"
-tp = "TP1"
-
 for (gene in unique(dataFINALmean$Gene)) {
     df <- dataFINALmean %>% filter(Gene == gene)
-    df <- df %>% filter(!is.na(Timepoint), !is.na(mean_capZ), !is.na(Subpopulation), !is.na(Sex), !is.na(Category))
+    df <- df %>% filter(!is.na(Timepoint), !is.na(mean_capZ), !is.na(Subpopulation), !is.na(Recovery), !is.na(Category))
     
     for (subpop in unique(df$Subpopulation)) {
         df_subpop <- df %>% filter(Subpopulation == subpop)
@@ -2231,33 +2124,33 @@ for (gene in unique(dataFINALmean$Gene)) {
                 cat("Error in Pearson's Correlation for gene", gene, "& Subpopulation with NHISS", subpop, "- skipping this comparison.\n")
             })
             
-            for (sex in unique(df_tp$Sex)) {
-                df_sex <- df_tp %>% filter(Sex == sex, !is.na(NHISS))
+            for (recovery in unique(df_tp$Recovery)) {
+                df_recovery <- df_tp %>% filter(Recovery == recovery, !is.na(NHISS))
                 # Outlier removal
-                lm_initial <- lm(mean_capZ ~ NHISS, data = df_sex)
+                lm_initial <- lm(mean_capZ ~ NHISS, data = df_recovery)
                 residuals_values <- residuals(lm_initial)
                 outlier_indices <- which(abs(residuals_values) > (3 * sd(residuals_values)))
                 # Remove outliers only if any are detected
                 if (length(outlier_indices) > 0) {
-                    df_sex_filtered <- df_sex[-outlier_indices, ]
+                    df_recovery_filtered <- df_recovery[-outlier_indices, ]
                 } else {
-                    df_sex_filtered <- df_sex  # No outliers, keep the original dataframe
+                    df_recovery_filtered <- df_recovery  # No outliers, keep the original dataframe
                 }
                 
-                if (nrow(df_sex_filtered) < 2) next  # Ensure there are enough data points after outlier removal
+                if (nrow(df_recovery_filtered) < 2) next  # Ensure there are enough data points after outlier removal
                 
                 
                 tryCatch({
-                    # Pearson's correlation for Sex
-                    x <- cor.test(df_sex_filtered$mean_capZ, df_sex_filtered$NHISS)
+                    # Pearson's correlation for recovery
+                    x <- cor.test(df_recovery_filtered$mean_capZ, df_recovery_filtered$NHISS)
                     row <- data.frame(
                         Subpopulation = subpop,
-                        Sex = sex,
+                        Recovery = recovery,
                         Timepoint = tp,
                         Gene = gene,
-                        GeneID = df_sex_filtered$GeneID[1],
-                        Gene_Group = df_sex_filtered$Gene_Group[1],
-                        N = nrow(df_sex_filtered),
+                        GeneID = df_recovery_filtered$GeneID[1],
+                        Gene_Group = df_recovery_filtered$Gene_Group[1],
+                        N = nrow(df_recovery_filtered),
                         p.value = x$p.value,
                         Estimate = x$estimate,
                         Est_CI_Lower = x$conf.int[1],
@@ -2268,24 +2161,24 @@ for (gene in unique(dataFINALmean$Gene)) {
                     )
                     
                     # Linear regression for coefficient and CI
-                    lm_result_sex <- lm(mean_capZ ~ NHISS, data = df_sex_filtered)
-                    coef_x <- summary(lm_result_sex)$coefficients[2, 1]
-                    ci <- confint(lm_result_sex)[2, ]
+                    lm_result_recovery <- lm(mean_capZ ~ NHISS, data = df_recovery_filtered)
+                    coef_x <- summary(lm_result_recovery)$coefficients[2, 1]
+                    ci <- confint(lm_result_recovery)[2, ]
                     
                     row$Coefficient <- coef_x
                     row$Coef_CI_Lower <- ci[1]
                     row$Coef_CI_Upper <- ci[2]
                     
                     if (row$p.value<=0.05){
-                        titel <- paste(gene, " expression in ", subpop, " monocytes at ", tp," ( ", sex, " Samples)", sep="")
+                        titel <- paste(gene, " expression in ", subpop, " monocytes at ", tp," ( ", recovery, " Samples)", sep="")
                         file_name <- paste("LinReg_Plots_NHISS_capZ/",titel, ".png", sep = "")
-                        ggplot(data = df_sex_filtered, aes(x = NHISS, y = mean_capZ)) +
+                        ggplot(data = df_recovery_filtered, aes(x = NHISS, y = mean_capZ)) +
                             geom_smooth(method = "glm", color = "black") +
-                            geom_point(aes(color = Sex), size = 2) +
+                            geom_point(aes(color = recovery), size = 2) +
                             ggtitle(titel) +
                             xlab("NHISS") +
                             ylab(paste(gene, "expression (Z-scored from CT - CT Sample Median)")) +
-                            scale_color_manual(values = c("Male" = "#A67C00", "Female" = "#1D04C2")) +
+                            scale_color_manual(values = c("Good" = "darkgreen", "Bad" = "#700606")) +
                             theme(text = element_text(size=14)) +
                             theme(
                                 panel.background = element_rect(fill = "white", color = "black"),
@@ -2297,11 +2190,12 @@ for (gene in unique(dataFINALmean$Gene)) {
                             )
                         ggsave(filename=file_name)
                     }
-                    NHISS_correlation_Sex_capZ <- rbind(NHISS_correlation_Sex_capZ, row)
+                    NHISS_correlation_Recovery_capZ <- rbind(NHISS_correlation_Recovery_capZ, row)
                 }, error = function(e) {
-                    cat("Error for", gene, tp, sex, "&", subpop, "- skipping this comparison.\n")
+                    cat("Error for", gene, tp, recovery, "&", subpop, "- skipping this comparison.\n")
                 }) 
             }
+            
             for (cat in unique(df_tp$Category)) {
                 df_cat <- df_tp %>% filter(Category == cat, !is.na(NHISS))
                 # Outlier removal
@@ -2379,19 +2273,31 @@ for (gene in unique(dataFINALmean$Gene)) {
 file_name <- "LinReg_Results_capZ/Pearson's Correlation_NHISS_capZ.csv"
 write.csv(NHISS_correlation_capZ, file_name, row.names = FALSE)
 
-file_name_s <- "LinReg_Results_capZ/Pearson's Correlation_NHISS_Sex_capZ.csv"
-write.csv(NHISS_correlation_Sex_capZ, file_name_s, row.names = FALSE)
+file_name_s <- "LinReg_Results_capZ/Pearson's Correlation_NHISS_Recovery_capZ.csv"
+write.csv(NHISS_correlation_Recovery_capZ, file_name_s, row.names = FALSE)
 
 file_name_s <- "LinReg_Results_capZ/Pearson's Correlation_NHISS_Category_capZ.csv"
 write.csv(NHISS_correlation_Category_capZ, file_name_s, row.names = FALSE)
 
 #### Extract significant LinRegs --------------------------------------------------------
 
-NHISS_correlation_capZ$Sex <- "All"
+NHISS_correlation_capZ$Recovery <- "All"
 NHISS_correlation_capZ$Category <- "All"
-NHISS_correlation_Sex_capZ$Category <- "All"
-NHISS_correlation_Category_capZ$Sex<- "All"
+NHISS_correlation_Recovery_capZ$Category <- "All"
+NHISS_correlation_Category_capZ$Recovery<- "All"
 
-All_NHISS_Pearson_capZ <- rbind(NHISS_correlation_capZ,NHISS_correlation_Sex_capZ, NHISS_correlation_Category_capZ)
+All_NHISS_Pearson_capZ <- rbind(NHISS_correlation_capZ,NHISS_correlation_Recovery_capZ, NHISS_correlation_Category_capZ)
 NHISS_sigGenes_Pearson <- All_NHISS_Pearson_capZ %>% filter(All_NHISS_Pearson_capZ$p.value <0.05)
 write.csv(NHISS_sigGenes_Pearson, "LinReg_Results_capZ/NHISS_sigGenes_Pearson.csv", row.names = FALSE)
+
+# *Demographics of Ctr & Patients -----------------------------------------------------------------------------
+
+# for FACS
+metadataP_FACS <- metadataP %>% filter(!SampleID %in% Unmatched_TP0_FACS)
+Demographics_FACS <- demographics_N_Age_Sex(metadataP_FACS)
+write.csv(Demographics_FACS, file = "Demographics_FACS.csv", row.names = FALSE)
+# for Gene expr.
+metadataP_Gene <- metadataP %>% filter(SampleID %in% unique(data_mean_matched$SampleID))
+Demographics_Gene <- demographics_N_Age_Sex(metadataP_Gene)
+write.csv(Demographics_Gene, file = "Demographics_Gene.csv", row.names = FALSE)
+
