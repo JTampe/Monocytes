@@ -151,7 +151,7 @@ plot_linear_regression <- function(data, cells_colname, group_name, output_folde
     
     Age_correlation_FACS <<- rbind(Age_correlation_FACS, rows_group)  # Update global variable
     
-    # Plot regression for the specific group
+    # Plot regression for the specific group with all timepoints
     p_group <- ggplot(data_filtered, aes(x = Age, y = .data[[cells_colname]], color = Timepoint)) +
         geom_point(size = 2) +
         geom_smooth(method = "lm", aes(color = Timepoint), se = FALSE, size = 1) +
@@ -182,15 +182,176 @@ plot_linear_regression <- function(data, cells_colname, group_name, output_folde
         }
     }
     
-    # Save the plot
+    # Save the plot with all timepoints
     ggsave(filename = file.path(output_folder, paste0("LinReg_", group_name, "_", cells_colname, ".png")), plot = p_group)
+    
+    # Create an additional plot with only significant timepoints if there are any
+    significant_timepoints <- rows_group$Timepoint[rows_group$p.value <= 0.05]
+    
+    if (length(significant_timepoints) > 0) {
+        # Plot with all significant timepoints together
+        p_significant <- ggplot(data_filtered %>% filter(Timepoint %in% significant_timepoints), 
+                                aes(x = Age, y = .data[[cells_colname]], color = Timepoint)) +
+            geom_point(size = 2) +
+            geom_smooth(method = "lm", aes(color = Timepoint), se = TRUE, size = 1) +
+            ggtitle(paste("Linear Regression - Significant Only -", group_name, "(", cells_colname, ")", sep = " ")) +
+            xlab("Age") +
+            ylab(cells_colname) +
+            theme(text = element_text(size = 14)) +
+            theme(
+                panel.background = element_rect(fill = "white", color = "black"),
+                plot.background = element_rect(fill = "white", color = "black"),
+                text = element_text(color = "black"),
+                panel.grid.major = element_line(color = "gray", size = 0.2),
+                panel.grid.minor = element_blank(),
+                panel.grid.major.x = element_blank()
+            ) +
+            scale_color_manual(values = my_colors) +
+            scale_fill_manual(values = my_colors)
+        
+        # Save the plot with only significant timepoints together
+        ggsave(filename = file.path(output_folder, paste0("LinReg_SignificantOnly_", group_name, "_", cells_colname, ".png")), plot = p_significant)
+        
+        # Plot individual plots for each significant timepoint
+        for (sig_timepoint in significant_timepoints) {
+            p_individual <- ggplot(data_filtered %>% filter(Timepoint == sig_timepoint), 
+                                   aes(x = Age, y = .data[[cells_colname]], color = Timepoint)) +
+                geom_point(size = 2) +
+                geom_smooth(method = "lm", aes(color = Timepoint), se = TRUE, size = 1) +
+                ggtitle(paste("Linear Regression -", group_name, "(", cells_colname, ")", " - Timepoint:", sig_timepoint)) +
+                xlab("Age") +
+                ylab(cells_colname) +
+                theme(text = element_text(size = 14)) +
+                theme(
+                    panel.background = element_rect(fill = "white", color = "black"),
+                    plot.background = element_rect(fill = "white", color = "black"),
+                    text = element_text(color = "black"),
+                    panel.grid.major = element_line(color = "gray", size = 0.2),
+                    panel.grid.minor = element_blank(),
+                    panel.grid.major.x = element_blank()
+                ) +
+                scale_color_manual(values = my_colors[sig_timepoint]) +
+                scale_fill_manual(values = my_colors[sig_timepoint])
+            
+            # Save the individual plot
+            ggsave(filename = file.path(output_folder, paste0("LinReg_SignificantOnly_", group_name, "_", cells_colname, "_Timepoint_", sig_timepoint, ".png")), plot = p_individual)
+        }
+    }
 }
 
-getMeTheFailedSamples = function( data, gene, cutoff ){
+plot_linear_regression_NHISS <- function(data, cells_colname, group_name, output_folder) {
     
-    data$Sample[which(data$Gene == gene & data$CT_Value > cutoff
-                      #, na.rm = TRUE
-    )]
+    # Fit the initial linear model to identify outliers
+    lm_initial <- lm(data[[cells_colname]] ~ data$NHISS)
+    residuals_values <- residuals(lm_initial)
+    outlier_indices <- which(abs(residuals_values) > (3 * sd(residuals_values)))
+    
+    # Filter out the outliers
+    data_filtered <- data[-outlier_indices, ]
+    
+    # Check if there are enough data points to fit the model
+    if (nrow(data_filtered) < 2) {
+        warning(paste("Not enough data points after outlier removal for", group_name, "(", cells_colname, "). Skipping plot."))
+        return(NULL)
+    }
+    
+    # Calculate linear regression results on filtered data
+    rows_group <- calculate_linreg_by_timepoint(data_filtered, cells_colname)
+    if (is.null(rows_group) || nrow(rows_group) == 0) {
+        warning(paste("No results for", group_name, "(", cells_colname, "). Skipping plot."))
+        return(NULL)
+    }
+    
+    rows_group$Focus <- group_name  # Add the group label
+    
+    NHISS_correlation_FACS <<- rbind(NHISS_correlation_FACS, rows_group)  # Update global variable
+    
+    # Plot regression for the specific group with all timepoints
+    p_group <- ggplot(data_filtered, aes(x = NHISS, y = .data[[cells_colname]], color = Timepoint)) +
+        geom_point(size = 2) +
+        geom_smooth(method = "lm", aes(color = Timepoint), se = FALSE, size = 1) +
+        ggtitle(paste("NHISS Linear Regression -", group_name, "(", cells_colname, ")", sep = " ")) +
+        xlab("NHISS") +
+        ylab(cells_colname) +
+        theme(text = element_text(size = 14)) +
+        theme(
+            panel.background = element_rect(fill = "white", color = "black"),
+            plot.background = element_rect(fill = "white", color = "black"),
+            text = element_text(color = "black"),
+            panel.grid.major = element_line(color = "gray", size = 0.2),
+            panel.grid.minor = element_blank(),
+            panel.grid.major.x = element_blank()
+        ) +
+        scale_color_manual(values = my_colors) +
+        scale_fill_manual(values = my_colors)
+    
+    # Add confidence interval only if p-value is <= 0.05
+    for (timepoint in unique(data_filtered$Timepoint)) {
+        if (rows_group$p.value[rows_group$Timepoint == timepoint] <= 0.05) {
+            p_group <- p_group + geom_smooth(data = subset(data_filtered, Timepoint == timepoint),
+                                             method = "lm",
+                                             aes(fill = Timepoint),
+                                             se = TRUE,
+                                             alpha = 0.25,
+                                             color = NA)
+        }
+    }
+    
+    # Save the plot with all timepoints
+    ggsave(filename = file.path(output_folder, paste0("NHISS_LinReg_", group_name, "_", cells_colname, ".png")), plot = p_group)
+    
+    # Create an additional plot with only significant timepoints if there are any
+    significant_timepoints <- rows_group$Timepoint[rows_group$p.value <= 0.05]
+    
+    if (length(significant_timepoints) > 0) {
+        # Plot with all significant timepoints together
+        p_significant <- ggplot(data_filtered %>% filter(Timepoint %in% significant_timepoints), 
+                                aes(x = NHISS, y = .data[[cells_colname]], color = Timepoint)) +
+            geom_point(size = 2) +
+            geom_smooth(method = "lm", aes(color = Timepoint), se = TRUE, size = 1) +
+            ggtitle(paste("NHISS Linear Regression - Significant Only -", group_name, "(", cells_colname, ")", sep = " ")) +
+            xlab("NHISS") +
+            ylab(cells_colname) +
+            theme(text = element_text(size = 14)) +
+            theme(
+                panel.background = element_rect(fill = "white", color = "black"),
+                plot.background = element_rect(fill = "white", color = "black"),
+                text = element_text(color = "black"),
+                panel.grid.major = element_line(color = "gray", size = 0.2),
+                panel.grid.minor = element_blank(),
+                panel.grid.major.x = element_blank()
+            ) +
+            scale_color_manual(values = my_colors) +
+            scale_fill_manual(values = my_colors)
+        
+        # Save the plot with only significant timepoints together
+        ggsave(filename = file.path(output_folder, paste0("NHISS_LinReg_SignificantOnly_", group_name, "_", cells_colname, ".png")), plot = p_significant)
+        
+        # Plot individual plots for each significant timepoint
+        for (sig_timepoint in significant_timepoints) {
+            p_individual <- ggplot(data_filtered %>% filter(Timepoint == sig_timepoint), 
+                                   aes(x = NHISS, y = .data[[cells_colname]], color = Timepoint)) +
+                geom_point(size = 2) +
+                geom_smooth(method = "lm", aes(color = Timepoint), se = TRUE, size = 1) +
+                ggtitle(paste("NHISS Linear Regression -", group_name, "(", cells_colname, ")", " - Timepoint:", sig_timepoint)) +
+                xlab("NHISS") +
+                ylab(cells_colname) +
+                theme(text = element_text(size = 14)) +
+                theme(
+                    panel.background = element_rect(fill = "white", color = "black"),
+                    plot.background = element_rect(fill = "white", color = "black"),
+                    text = element_text(color = "black"),
+                    panel.grid.major = element_line(color = "gray", size = 0.2),
+                    panel.grid.minor = element_blank(),
+                    panel.grid.major.x = element_blank()
+                ) +
+                scale_color_manual(values = my_colors[sig_timepoint]) +
+                scale_fill_manual(values = my_colors[sig_timepoint])
+            
+            # Save the individual plot
+            ggsave(filename = file.path(output_folder, paste0("NHISS_LinReg_SignificantOnly_", group_name, "_", cells_colname, "_Timepoint_", sig_timepoint, ".png")), plot = p_individual)
+        }
+    }
 }
 
 # summary data.frame for dotplot
@@ -1188,6 +1349,69 @@ for (i in 5:17) {
 
 # Save results to CSV
 write.csv(Age_correlation_FACS, "Age_correlation_FACS.csv", row.names = FALSE)
+
+sigAge_correlation_FACS <- Age_correlation_FACS %>% filter(Age_correlation_FACS$p.value <0.05)
+write.csv(sigAge_correlation_FACS, "sigAge_correlation_FACS.csv", row.names = FALSE)
+
+#### NHISS linear regression -----------------
+NHISS_correlation_FACS <- data.frame(Cells = character(), Timepoint = character(), Sex = character(), N = numeric(), 
+                                   p.value = numeric(), Coefficient = numeric(), Down95 = numeric(), 
+                                   Up95 = numeric(), Intercept = numeric(), Fold = numeric(), 
+                                   Max_NHISS = numeric(), Min_NHISS = numeric())
+# remove Patient40 as I do not have NHISS and Sex from them
+FACSdata <- FACSdata[!is.na(FACSdata$NHISS), ]
+
+# Main loop for each column
+for (i in 5:17) {
+    cells_colname <- colnames(FACSdata)[i]
+    
+    # All samples
+    plot_linear_regression_NHISS(FACSdata, cells_colname, "All", output_folder)
+    
+    # Male samples
+    FACSdata_male <- FACSdata[FACSdata$Sex == "Male", ]
+    if (nrow(FACSdata_male) > 0) {
+        plot_linear_regression_NHISS(FACSdata_male, cells_colname, "Male", output_folder)
+    }
+    
+    # Female samples
+    FACSdata_female <- FACSdata[FACSdata$Sex == "Female", ]
+    if (nrow(FACSdata_female) > 0) {
+        plot_linear_regression_NHISS(FACSdata_female, cells_colname, "Female", output_folder)
+    }
+    
+    # Minor category
+    FACSdata_Minor <- FACSdata[FACSdata$Category == "MINOR", ]
+    if (nrow(FACSdata_Minor) > 0) {
+        plot_linear_regression_NHISS(FACSdata_Minor, cells_colname, "Minor", output_folder)
+    }
+    
+    # Moderate category
+    FACSdata_Moderate <- FACSdata[FACSdata$Category == "MODERATE", ]
+    if (nrow(FACSdata_Moderate) > 0) {
+        plot_linear_regression_NHISS(FACSdata_Moderate, cells_colname, "Moderate", output_folder)
+    }
+    
+    # Good recovery
+    FACSdata_Good <- FACSdata[FACSdata$Recovery == "Good", ]
+    FACSdata_Good <- FACSdata_Good[!is.na(FACSdata_Good$Age), ]
+    if (nrow(FACSdata_Good) > 0) {
+        plot_linear_regression_NHISS(FACSdata_Good, cells_colname, "Good", output_folder)
+    }
+    
+    # Bad recovery
+    FACSdata_Bad <- FACSdata[FACSdata$Recovery == "Bad", ]
+    FACSdata_Bad <- FACSdata_Bad[!is.na(FACSdata_Bad$Age), ]
+    if (nrow(FACSdata_Bad) > 0) {
+        plot_linear_regression_NHISS(FACSdata_Bad, cells_colname, "Bad", output_folder)
+    }
+}
+
+# Save results to CSV
+write.csv(NHISS_correlation_FACS, "NHISS_correlation_FACS.csv", row.names = FALSE)
+
+sigNHISS_correlation_FACS <- NHISS_correlation_FACS %>% filter(NHISS_correlation_FACS$p.value <0.05)
+write.csv(sigNHISS_correlation_FACS, "sigNHISS_correlation_FACS.csv", row.names = FALSE)
 
 #### 1WAY ANOVA* ----------------------------------------------------------------------------------------------------
 # with wilcox
