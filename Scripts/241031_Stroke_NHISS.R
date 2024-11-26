@@ -72,7 +72,11 @@ createSeparatedDataFiles <- function(data, categoryColumn, categoryFolder) {
   
   return(uniqueCategories)
 }
-
+## Function to get the failes samples
+getMeTheFailedSamples<- function(data, gene, cutoff) {
+    # Extract the Sample IDs where the gene's value exceeds the cutoff
+    unique(data$Sample[which(data$Gene == gene & (data$CT_Value > cutoff | is.na(data$CT_Value)))])
+}
 ## Function to perform correlation and linear regression by Timepoint
 calculate_linreg_by_timepoint <- function(data, cells_colname) {
     
@@ -830,22 +834,6 @@ dataTRIM <- dataTRIM %>% filter(SampleID != "Test03")
 dataTRIM <- dataTRIM %>% filter(SampleID != "Test04")
 
 dataTRIM$Cell_Count <- NULL
-#### Evaluate Housekeeping genes -----------
-FailedHK <-table ( c( 
-    getMeTheFailedSamples(dataTRIM, "ACTB", 30),
-    getMeTheFailedSamples(dataTRIM, "B2M", 30),
-    getMeTheFailedSamples(dataTRIM, "GAPDH", 30)
-)
-)
-hist(FailedHK)
-
-failedSAMPLES <- names(FailedHK) [ which(FailedHK > 2) ]
-
-# Set CT & dCT NA for the Sampels with failed HK gene
-# Set data$Value to NA for the samples that are in the failedSAMPLES vector
-dataTRIM$CT_Value <- ifelse(dataTRIM$Sample %in% failedSAMPLES, yes = NA, no = dataTRIM$CT_Value)
-dataTRIM$dCT_Value <- ifelse(dataTRIM$Sample %in% failedSAMPLES, yes = NA, no = dataTRIM$dCT_Value)
-dataTRIM$Comment <- ifelse(dataTRIM$Sample %in% failedSAMPLES, yes = "More than 2 houskeeing gene reads failed", no = dataTRIM$Comment)
 
 #### Expand data --------------------------------------------------------
 unique_SampleID <- unique(dataTRIM$SampleID[!grepl("^Ctr", dataTRIM$SampleID)])
@@ -940,7 +928,7 @@ dataAll <- dataAll %>% filter(!is.na(Age), !is.na(SampleID), !is.na(Category), !
 
 #### failed Genes --------------------------------------------------------
 fails <- dataAll %>%
-    group_by(Subpopulation, Gene, Sex) %>%
+    group_by(Subpopulation, Gene, Timepoint) %>%
     summarize(
         N = n(),
         Count_Above_35_CT = sum(CT_Value >= 35, na.rm = TRUE) + sum(is.na(CT_Value)),  # Include NAs in the count
@@ -948,10 +936,10 @@ fails <- dataAll %>%
 
 fails$Per_Above_35_CT = fails$Count_Above_35_CT/fails$N * 100
 
-failed_genes <- fails %>% filter(Per_Above_35_CT >= 82.7) %>% select(Gene)
+failed_genes <- fails %>% filter(Per_Above_35_CT >= 90) %>% select(Gene)
 wrong_threshold <- c("CLEC7A", "S100A8", "S100A9")
 exclude_genes  <- unique(c("Xeno",failed_genes$Gene, wrong_threshold))
-paste("The gene",unique(failed_genes$Gene), "was excluded, as more than 80% of the reads failed.")
+paste("The gene",unique(failed_genes$Gene), "was excluded, as more than 90% of the reads failed.")
 paste("The gene",wrong_threshold, "was excluded, as the global threshold setting did not allow proper evaluation.")
 
 # remove the failed genes:
@@ -977,6 +965,25 @@ dataWORKING$CT_Value <- ifelse(dataWORKING$Sample %in% failed_samples, yes = NA,
 dataWORKING$dCT_Value <- ifelse(dataWORKING$Sample %in% failed_samples, yes = NA, no = dataWORKING$dCT_Value)
 dataWORKING$Comment <- ifelse(dataWORKING$Sample %in% failed_samples, yes = "More 30% of CT values were 35 and above, imputed Values", no = dataWORKING$Comment)
 unique(dataWORKING$Comment)
+
+#### Evaluate Housekeeping genes -----------
+FailedHK <-table(c( 
+    getMeTheFailedSamples(dataWORKING, "ACTB", 30),
+    getMeTheFailedSamples(dataWORKING, "B2M", 30),
+    getMeTheFailedSamples(dataWORKING, "GAPDH", 30)))
+
+hist(as.numeric(FailedHK), 
+     main = "Histogram of Failed Samples", 
+     xlab = "Failed Samples Count", 
+     breaks = 10)
+
+failedSAMPLES <- names(FailedHK) [ which(FailedHK > 2) ]
+
+# Set CT & dCT NA for the Sampels with failed HK gene
+# Set data$Value to NA for the samples that are in the failedSAMPLES vector
+dataWORKING$CT_Value <- ifelse(dataWORKING$Sample %in% failedSAMPLES, yes = NA, no = dataWORKING$CT_Value)
+dataWORKING$dCT_Value <- ifelse(dataWORKING$Sample %in% failedSAMPLES, yes = NA, no = dataWORKING$dCT_Value)
+dataWORKING$Comment <- ifelse(dataWORKING$Sample %in% failedSAMPLES, yes = "More than 2 houskeeing gene reads failed", no = dataWORKING$Comment)
 
 # Filter the data for the desired genes
 filtered_data <- dataWORKING %>%
@@ -2513,6 +2520,32 @@ NHISS_correlation_Category_capZ$Recovery<- "All"
 All_NHISS_Pearson_capZ <- rbind(NHISS_correlation_capZ,NHISS_correlation_Recovery_capZ, NHISS_correlation_Category_capZ)
 NHISS_sigGenes_Pearson <- All_NHISS_Pearson_capZ %>% filter(All_NHISS_Pearson_capZ$p.value <0.05)
 write.csv(NHISS_sigGenes_Pearson, "LinReg_Results_capZ/NHISS_sigGenes_Pearson.csv", row.names = FALSE)
+
+
+# *Heatmaps* ----------------------------------
+
+Age_correlation_capZ <- Age_correlation_capZ %>%
+    mutate(Gene_Ordered = paste(GeneID, Gene, sep = "_"))
+
+# ranges: 
+# Estimate: - 0.7 to 0.79 
+# Coefficient: -0.066 to 0.066
+ggplot(Age_correlation_capZ, aes(Gene_Ordered, Timepoint, fill= Estimate)) + 
+    geom_tile() +
+    scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                         midpoint = 0, limits = c(-0.7, 0.8)) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    labs(title = "Heatmap of Age Correlation Estimates", x = "Gene", y = "Timepoint", fill = "Estimate")
+
+ggplot(Age_correlation_capZ, aes(Timepoint, Gene_Ordered, fill= Estimate)) + 
+    geom_tile() +
+    scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                         midpoint = 0, limits = c(-0.7, 0.8)) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    labs(title = "Heatmap of Age Correlation Estimates", x = "Gene", y = "Timepoint", fill = "Estimate")
+
 
 # *Demographics of Ctr & Patients -----------------------------------------------------------------------------
 
