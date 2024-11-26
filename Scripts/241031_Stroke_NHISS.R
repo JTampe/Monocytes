@@ -2523,29 +2523,103 @@ write.csv(NHISS_sigGenes_Pearson, "LinReg_Results_capZ/NHISS_sigGenes_Pearson.cs
 
 
 # *Heatmaps* ----------------------------------
+new_folder <- "Pearsson_Heatmaps"
+createFolder(new_folder)
 
+#### Aging (all genes) ---------------
 Age_correlation_capZ <- Age_correlation_capZ %>%
     mutate(Gene_Ordered = paste(GeneID, Gene, sep = "_"))
+Age_correlation_capZ <- Age_correlation_capZ %>%
+    mutate(Groups = paste(Subpopulation, Timepoint, sep = "_"))
 
 # ranges: 
 # Estimate: - 0.7 to 0.79 
 # Coefficient: -0.066 to 0.066
-ggplot(Age_correlation_capZ, aes(Gene_Ordered, Timepoint, fill= Estimate)) + 
+name_plot <- "Heatmap of Age Correlation Estimates"
+ggplot(Age_correlation_capZ, aes(Gene_Ordered, Groups, fill= Estimate)) + 
     geom_tile() +
     scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
-                         midpoint = 0, limits = c(-0.7, 0.8)) +
+                         midpoint = 0, limits = c(-0.7, 0.804)) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    labs(title = name_plot, x = "Gene", y = "Timepoint & Suptype", fill = "Estimate")
+ggsave(filename = paste(new_folder, "/",name_plot,".png", sep=""))
+
+name_plot <- paste(name_plot," (transposed)")
+ggplot(Age_correlation_capZ, aes(Groups, Gene_Ordered, fill= Estimate)) + 
+    geom_tile() +
+    scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                         midpoint = 0, limits = c(-0.7, 0.804)) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    labs(title = name_plot, x = "Timepoint & Suptype", y = "Gene", fill = "Estimate")
+ggsave(filename = paste(new_folder, "/",name_plot,".png", sep=""))
+
+
+#### Aging (significant genes) ---------------
+sigGenes_Pearsson_Age <- Age_correlation_capZ %>% filter(Age_correlation_capZ$p.value <=0.05)
+
+sigGenes_Pearsson_Age <- sigGenes_Pearsson_Age %>%
+    mutate(Gene_Ordered = paste(GeneID, Gene, sep = "_"))
+sigGenes_Pearsson_Age <- sigGenes_Pearsson_Age %>%
+    mutate(Groups = paste(Subpopulation, Timepoint, sep = "_"))
+
+name_plot <- "Heatmap of sig.Genes Age Correlation Estimates"
+ggplot(sigGenes_Pearsson_Age, aes(Gene_Ordered, Groups, fill= Estimate)) + 
+    geom_tile() +
+    scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                         midpoint = 0, limits = c(-0.7, 0.804)) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    labs(title = name_plot, x = "Gene", y = "Timepoint", fill = "Estimate")
+ggsave(filename = paste(new_folder, "/",name_plot,".png", sep=""))
+
+name_plot <- paste(name_plot," (transposed)")
+ggplot(sigGenes_Pearsson_Age, aes(Groups, Gene_Ordered, fill= Estimate)) + 
+    geom_tile() +
+    scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                         midpoint = 0, limits = c(-0.7, 0.804)) +
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
     labs(title = "Heatmap of Age Correlation Estimates", x = "Gene", y = "Timepoint", fill = "Estimate")
+ggsave(filename = paste(new_folder, "/",name_plot,".png", sep=""))
 
-ggplot(Age_correlation_capZ, aes(Timepoint, Gene_Ordered, fill= Estimate)) + 
+#### NHISS (all genes) ---------------
+NHISS_correlation_capZ <- NHISS_correlation_capZ %>%
+    mutate(Gene_Ordered = paste(GeneID, Gene, sep = "_"))
+NHISS_correlation_capZ <- NHISS_correlation_capZ %>%
+    mutate(Groups = paste(Subpopulation, Timepoint, sep = "_"))
+
+# ranges: 
+# Estimate: - 0.99 to 0.92
+# Coefficient: -0.066 to 0.066
+
+name_plot <- paste("Heatmap of NHISS Correlation Estimates")
+# Add significance levels
+NHISS_correlation_capZ$Significance <- ifelse(NHISS_correlation_capZ$p.value < 0.001, "***",
+                                              ifelse(NHISS_correlation_capZ$p.value < 0.01, "**",
+                                                     ifelse(NHISS_correlation_capZ$p.value < 0.05, "*", "")))
+# Create the heatmap with significance levels
+ggplot(NHISS_correlation_capZ, aes(x = Gene_Ordered, y = Groups, fill = Estimate)) + 
     geom_tile() +
     scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
-                         midpoint = 0, limits = c(-0.7, 0.8)) +
+                         midpoint = 0, limits = c(-0.99, 0.92)) +
+    geom_text(aes(label = Significance), color = "white", size = 3) + # Add significance levels with white text
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-    labs(title = "Heatmap of Age Correlation Estimates", x = "Gene", y = "Timepoint", fill = "Estimate")
+    labs(title = name_plot, x = "Gene", y = "Timepoint & Subpopulation", fill = "Estimate")
+ggsave(filename = paste(new_folder, "/",name_plot,".png", sep=""))
 
+name_plot <- paste(name_plot," (transposed)")
+ggplot(NHISS_correlation_capZ, aes(Groups, Gene_Ordered, fill= Estimate)) + 
+    geom_tile() +
+    scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                         midpoint = 0, limits = c(-0.99, 0.92)) +
+    geom_text(aes(label = Significance), color = "white", size = 3) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    labs(title = name_plot, x = "Timepoint & Subpopulation", y = "Timepoint", fill = "Estimate")
+ggsave(filename = paste(new_folder, "/",name_plot,".png", sep=""))
 
 # *Demographics of Ctr & Patients -----------------------------------------------------------------------------
 
