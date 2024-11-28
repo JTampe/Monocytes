@@ -1007,6 +1007,12 @@ ggplot(variance_table, aes(x = Timepoint, y = CV, fill = Subpopulation)) +
     theme_minimal() +
     scale_fill_manual(values = c("darkgreen", "orange", "red", "magenta"))
 
+# *Test: Pool TP1 & TP2 and TP3 & TP4* --------------------------------------------------------------------------------------------
+# add TP2 to TP1
+# dataWORKING$Timepoint[grep("TP2",dataWORKING$Timepoint)]  <- "TP1"
+# add TP2 to TP1
+# dataWORKING$Timepoint[grep("TP4",dataWORKING$Timepoint)]  <- "TP3"
+
 
 # *Imputation* --------------------------------------------------------------------------------------------
 #### Prepare Matrix for imputation ---------------------------------------------------------------------
@@ -2535,9 +2541,7 @@ Age_correlation_capZ <- Age_correlation_capZ %>%
 Age_correlation_capZ$Significance <- ifelse(Age_correlation_capZ$p.value < 0.001, "***",
                                               ifelse(Age_correlation_capZ$p.value < 0.01, "**",
                                                      ifelse(Age_correlation_capZ$p.value < 0.05, "*", "")))
-# ranges: 
 # Estimate: - 0.7 to 0.79 
-# Coefficient: -0.066 to 0.066
 name_plot <- "Heatmap of Age Correlation Estimates"
 ggplot(Age_correlation_capZ, aes(Gene_Ordered, Groups, fill= Estimate)) + 
     geom_tile() +
@@ -2568,10 +2572,7 @@ NHISS_correlation_capZ <- NHISS_correlation_capZ %>%
 NHISS_correlation_capZ <- NHISS_correlation_capZ %>%
     mutate(Groups = paste(Subpopulation, Timepoint, sep = "_"))
 
-# ranges: 
 # Estimate: - 0.99 to 0.92
-# Coefficient: -0.066 to 0.066
-
 name_plot <- paste("Heatmap of NHISS Correlation Estimates")
 # Add significance levels
 NHISS_correlation_capZ$Significance <- ifelse(NHISS_correlation_capZ$p.value < 0.001, "***",
@@ -2598,6 +2599,65 @@ ggplot(NHISS_correlation_capZ, aes(Groups, Gene_Ordered, fill= Estimate)) +
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
     labs(title = name_plot, x = "Timepoint & Subpopulation", y = "Timepoint", fill = "Estimate")
+ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
+       plot = last_plot(), width = 5, height = 10, dpi = 300)
+
+#### Aging (Coefficient) ---------------
+
+# Coefficient: -0.066 to 0.066
+name_plot <- "Heatmap of Age Correlation Coefficients"
+ggplot(Age_correlation_capZ, aes(Gene_Ordered, Groups, fill= Coefficient)) + 
+    geom_tile() +
+    scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                         midpoint = 0, limits = c(-0.065, 0.067)) +
+    geom_text(aes(label = Significance), color = "white", size = 3) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    labs(title = name_plot, x = "Gene", y = "Timepoint & Suptype", fill = "Coefficient")
+ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
+       plot = last_plot(), width = 10, height = 5, dpi = 300)
+
+name_plot <- paste(name_plot," (transposed)")
+ggplot(Age_correlation_capZ, aes(Groups, Gene_Ordered, fill= Coefficient)) + 
+    geom_tile() +
+    scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                         midpoint = 0, limits = c(-0.065, 0.067)) +
+    geom_text(aes(label = Significance), color = "white", size = 3) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    labs(title = name_plot, x = "Timepoint & Suptype", y = "Gene", fill = "Coefficient")
+ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
+       plot = last_plot(), width = 5, height = 10, dpi = 300)
+
+#### NHISS (Coefficient) ---------------
+
+# Coefficient: -0.066 to 0.066
+name_plot <- paste("Heatmap of NHISS Correlation Coefficients")
+# Add significance levels
+NHISS_correlation_capZ$Significance <- ifelse(NHISS_correlation_capZ$p.value < 0.001, "***",
+                                              ifelse(NHISS_correlation_capZ$p.value < 0.01, "**",
+                                                     ifelse(NHISS_correlation_capZ$p.value < 0.05, "*", "")))
+# Create the heatmap with significance levels
+ggplot(NHISS_correlation_capZ, aes(x = Gene_Ordered, y = Groups, fill = Coefficient)) + 
+    geom_tile() +
+    scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                         midpoint = 0, limits = c(-0.63, 0.68)) +
+    geom_text(aes(label = Significance), color = "black", size = 3) + # Add significance levels with white text
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    labs(title = name_plot, x = "Gene", y = "Timepoint & Subpopulation", fill = "Coefficient")
+ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
+       plot = last_plot(), width = 10, height = 5, dpi = 300)
+
+name_plot <- paste(name_plot," (transposed)")
+ggplot(NHISS_correlation_capZ, aes(Groups, Gene_Ordered, fill= Coefficient)) + 
+    geom_tile() +
+    scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                         midpoint = 0, limits = c(-0.63, 0.68)) +
+    geom_text(aes(label = Significance), color = "black", size = 3) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    labs(title = name_plot, x = "Timepoint & Subpopulation", y = "Timepoint", fill = "Coefficient")
 ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
        plot = last_plot(), width = 5, height = 10, dpi = 300)
 
