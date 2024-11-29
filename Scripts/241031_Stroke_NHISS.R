@@ -2721,7 +2721,7 @@ ggplot(NHISS_correlation_capZ, aes(x = Gene_Ordered, y = Groups, fill = Estimate
     geom_tile() +
     scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
                          midpoint = 0, limits = c(-0.99, 0.92)) +
-    geom_text(aes(label = Significance), color = "white", size = 3) + # Add significance levels with white text
+    geom_text(aes(label = Significance), color = "black", size = 3) + # Add significance levels with white text
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
     labs(title = name_plot, x = "Gene", y = "Timepoint & Subpopulation", fill = "Estimate")
@@ -2733,7 +2733,7 @@ ggplot(NHISS_correlation_capZ, aes(Groups, Gene_Ordered, fill= Estimate)) +
     geom_tile() +
     scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
                          midpoint = 0, limits = c(-0.99, 0.92)) +
-    geom_text(aes(label = Significance), color = "white", size = 3) +
+    geom_text(aes(label = Significance), color = "black", size = 3) +
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
     labs(title = name_plot, x = "Timepoint & Subpopulation", y = "Timepoint", fill = "Estimate")
@@ -2753,10 +2753,19 @@ for (sup in unique(Age_correlation_capZ$Subpopulation)) {
         geom_tile() +
         scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
                              midpoint = 0) +
-        geom_text(aes(label = Significance), color = "black", size = 3) +
+        geom_text(aes(label = Significance), color = "black", size = 6) +
         theme_minimal() +
         theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-        labs(title = name_plot, x = "Gene", y = "Timepoint & Suptype", fill = "Coefficient")
+        labs(title = name_plot, x = "Gene", y = "Timepoint", fill = "Coefficient")+
+        scale_y_discrete(labels = timepoint_labels)+ # Apply custom y-axis labels
+        scale_x_discrete(labels = function(x) str_sub(x, start = 4)) + # Remove first three characters
+        theme(
+            axis.text.x = element_text(angle = 90, hjust = 1, size = 14), # Adjust font size
+            axis.text.y = element_text(size = 14),                        # Adjust font size
+            axis.title.x = element_text(size = 16),
+            axis.title.y = element_text(size = 16),
+            plot.title = element_text(size = 18, face = "bold")
+        )
     ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
            plot = last_plot(), width = 10, height = 5, dpi = 300)
 }
@@ -2774,10 +2783,19 @@ for (sup in unique(Age_correlation_capZ$Subpopulation)) {
         geom_tile() +
         scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
                              midpoint = 0) +
-        geom_text(aes(label = Significance), color = "black", size = 3) +
+        geom_text(aes(label = Significance), color = "black", size = 6) +
         theme_minimal() +
         theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-        labs(title = name_plot, x = "Gene", y = "Timepoint & Suptype", fill = "Coefficient")
+        labs(title = name_plot, x = "Gene", y = "Timepoint", fill = "Coefficient")+
+        scale_y_discrete(labels = timepoint_labels)+# Apply custom y-axis labels
+        scale_x_discrete(labels = function(x) str_sub(x, start = 4)) + # Remove first three characters
+        theme(
+            axis.text.x = element_text(angle = 90, hjust = 1, size = 14), # Adjust font size
+            axis.text.y = element_text(size = 14),                        # Adjust font size
+            axis.title.x = element_text(size = 16),
+            axis.title.y = element_text(size = 16),
+            plot.title = element_text(size = 18, face = "bold")
+        )
     ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
            plot = last_plot(), width = 10, height = 5, dpi = 300)
 }
@@ -2795,10 +2813,19 @@ for (sup in unique(NHISS_correlation_capZ$Subpopulation)) {
         geom_tile() +
         scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
                              midpoint = 0) +
-        geom_text(aes(label = Significance), color = "black", size = 3) +
+        geom_text(aes(label = Significance), color = "black", size = 6) +
         theme_minimal() +
         theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-        labs(title = name_plot, x = "Gene", y = "Timepoint & Suptype", fill = "Coefficient")
+        labs(title = name_plot, x = "Gene", y = "Timepoint", fill = "Coefficient")+
+        scale_y_discrete(labels = timepoint_labels)+# Apply custom y-axis labels
+        scale_x_discrete(labels = function(x) str_sub(x, start = 4)) + # Remove first three characters
+        theme(
+            axis.text.x = element_text(angle = 90, hjust = 1, size = 14), # Adjust font size
+            axis.text.y = element_text(size = 14),                        # Adjust font size
+            axis.title.x = element_text(size = 16),
+            axis.title.y = element_text(size = 16),
+            plot.title = element_text(size = 18, face = "bold")
+        )
     ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
            plot = last_plot(), width = 10, height = 5, dpi = 300)
 }
@@ -2815,10 +2842,19 @@ for (sup in unique(NHISS_correlation_capZ$Subpopulation)) {
         geom_tile() +
         scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
                              midpoint = 0) +
-        geom_text(aes(label = Significance), color = "black", size = 3) +
+        geom_text(aes(label = Significance), color = "black", size = 6) +
         theme_minimal() +
         theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-        labs(title = name_plot, x = "Gene", y = "Timepoint & Suptype", fill = "Coefficient")
+        labs(title = name_plot, x = "Gene", y = "Timepoint", fill = "Coefficient")+
+        scale_y_discrete(labels = timepoint_labels)+# Apply custom y-axis labels
+        scale_x_discrete(labels = function(x) str_sub(x, start = 4)) + # Remove first three characters
+        theme(
+            axis.text.x = element_text(angle = 90, hjust = 1, size = 14), # Adjust font size
+            axis.text.y = element_text(size = 14),                        # Adjust font size
+            axis.title.x = element_text(size = 16),
+            axis.title.y = element_text(size = 16),
+            plot.title = element_text(size = 18, face = "bold")
+        )
     ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
            plot = last_plot(), width = 10, height = 5, dpi = 300)
 }
@@ -2836,10 +2872,18 @@ for (tp in unique(Age_correlation_capZ$Timepoint)) {
         geom_tile() +
         scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
                              midpoint = 0) +
-        geom_text(aes(label = Significance), color = "black", size = 3) +
+        geom_text(aes(label = Significance), color = "black", size = 6) +
         theme_minimal() +
         theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-        labs(title = name_plot, x = "Gene", y = "Timepoint & Suptype", fill = "Coefficient")
+        labs(title = name_plot, x = "Gene", y = "Monocyte Suptype", fill = "Coefficient")+
+        scale_x_discrete(labels = function(x) str_sub(x, start = 4)) + # Remove first three characters
+        theme(
+            axis.text.x = element_text(angle = 90, hjust = 1, size = 14), # Adjust font size
+            axis.text.y = element_text(size = 14),                        # Adjust font size
+            axis.title.x = element_text(size = 16),
+            axis.title.y = element_text(size = 16),
+            plot.title = element_text(size = 18, face = "bold")
+        )
     ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
            plot = last_plot(), width = 10, height = 5, dpi = 300)
 }
@@ -2857,10 +2901,18 @@ for (tp in unique(Age_correlation_capZ$Timepoint)) {
         geom_tile() +
         scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
                              midpoint = 0) +
-        geom_text(aes(label = Significance), color = "black", size = 3) +
+        geom_text(aes(label = Significance), color = "black", size = 6) +
         theme_minimal() +
         theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-        labs(title = name_plot, x = "Gene", y = "Timepoint & Suptype", fill = "Coefficient")
+        labs(title = name_plot, x = "Gene", y = "Monocyte Suptype", fill = "Coefficient")+
+        scale_x_discrete(labels = function(x) str_sub(x, start = 4)) + # Remove first three characters
+        theme(
+            axis.text.x = element_text(angle = 90, hjust = 1, size = 14), # Adjust font size
+            axis.text.y = element_text(size = 14),                        # Adjust font size
+            axis.title.x = element_text(size = 16),
+            axis.title.y = element_text(size = 16),
+            plot.title = element_text(size = 18, face = "bold")
+        )
     ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
            plot = last_plot(), width = 10, height = 5, dpi = 300)
 }
@@ -2878,10 +2930,18 @@ for (tp in unique(NHISS_correlation_capZ$Timepoint)) {
         geom_tile() +
         scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
                              midpoint = 0) +
-        geom_text(aes(label = Significance), color = "black", size = 3) +
+        geom_text(aes(label = Significance), color = "black", size = 6) +
         theme_minimal() +
         theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-        labs(title = name_plot, x = "Gene", y = "Timepoint & Suptype", fill = "Coefficient")
+        labs(title = name_plot, x = "Gene", y = "Monocyte Suptype", fill = "Coefficient")+
+        scale_x_discrete(labels = function(x) str_sub(x, start = 4)) + # Remove first three characters
+        theme(
+            axis.text.x = element_text(angle = 90, hjust = 1, size = 14), # Adjust font size
+            axis.text.y = element_text(size = 14),                        # Adjust font size
+            axis.title.x = element_text(size = 16),
+            axis.title.y = element_text(size = 16),
+            plot.title = element_text(size = 18, face = "bold")
+        )
     ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
            plot = last_plot(), width = 10, height = 5, dpi = 300)
 }
@@ -2898,10 +2958,18 @@ for (tp in unique(NHISS_correlation_capZ$Timepoint)) {
         geom_tile() +
         scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
                              midpoint = 0) +
-        geom_text(aes(label = Significance), color = "black", size = 3) +
+        geom_text(aes(label = Significance), color = "black", size = 6) +
         theme_minimal() +
         theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-        labs(title = name_plot, x = "Gene", y = "Timepoint & Suptype", fill = "Coefficient")
+        labs(title = name_plot, x = "Gene", y = "Monocyte Suptype", fill = "Coefficient")+
+        scale_x_discrete(labels = function(x) str_sub(x, start = 4)) + # Remove first three characters
+        theme(
+            axis.text.x = element_text(angle = 90, hjust = 1, size = 14), # Adjust font size
+            axis.text.y = element_text(size = 14),                        # Adjust font size
+            axis.title.x = element_text(size = 16),
+            axis.title.y = element_text(size = 16),
+            plot.title = element_text(size = 18, face = "bold")
+        )
     ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
            plot = last_plot(), width = 10, height = 5, dpi = 300)
 }
