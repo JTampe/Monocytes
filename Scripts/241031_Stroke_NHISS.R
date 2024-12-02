@@ -3201,3 +3201,260 @@ for (tp in unique(Metadata_NHISS$Timepoint)) {
 file_name_s<- "LinReg_AgeVsNHISS/Pearson's Correlation_AgeVsNHISS.csv"
 write.csv(AgeVsNHISS_correlation, file_name_s, row.names = FALSE)
 
+# *SPAN Regression --------------------------
+folder <- "LinReg_SPAN"
+createFolder(folder)
+
+# Create the SPAN variable as per Almekhlafi et. al 2014:
+dataFINALmean <- dataFINALmean %>%
+    mutate(SPAN = Age + NHISS)
+# Initialize dataframes to store correlation results
+SPAN_correlation_capZ <- data.frame(Subpopulation = character(), Timepoint = character(), Gene = character(), GeneID = numeric(), Gene_Group = character(), N = numeric(), p.value = numeric(), Estimate = numeric(), Est_CI_Lower = numeric(), Est_CI_Upper = numeric(), Coefficient = numeric(), Coef_CI_Lower = numeric(), Coef_CI_Upper = numeric())
+
+SPAN_correlation_Recovery_capZ <- data.frame(Subpopulation = character(), Recovery = character(), Timepoint = character(), Gene = character(), GeneID = numeric(), Gene_Group = character(), N = numeric(), p.value = numeric(), Estimate = numeric(), Est_CI_Lower = numeric(), Est_CI_Upper = numeric(), Coefficient = numeric(), Coef_CI_Lower = numeric(), Coef_CI_Upper = numeric())
+
+SPAN_correlation_Category_capZ <- data.frame(Subpopulation = character(), Category = character(), Timepoint = character(), Gene = character(), GeneID = numeric(), Gene_Group = character(), N = numeric(), p.value = numeric(), Estimate = numeric(), Est_CI_Lower = numeric(), Est_CI_Upper = numeric(), Coefficient = numeric(), Coef_CI_Lower = numeric(), Coef_CI_Upper = numeric())
+
+for (gene in unique(dataFINALmean$Gene)) {
+    df <- dataFINALmean %>% filter(Gene == gene)
+    df <- df %>% filter(!is.na(Timepoint), !is.na(mean_capZ), !is.na(Subpopulation), !is.na(Recovery), !is.na(Category))
+    
+    for (subpop in unique(df$Subpopulation)) {
+        df_subpop <- df %>% filter(Subpopulation == subpop)
+        
+        for (tp in unique(df_subpop$Timepoint)) {
+            df_tp <- df_subpop %>% filter(Timepoint == tp, !is.na(SPAN))
+            if (nrow(df_tp) <= 0) next
+            
+            # Outlier removal
+            lm_initial <- lm(mean_capZ ~ SPAN, data = df_tp)
+            residuals_values <- residuals(lm_initial)
+            outlier_indices <- which(abs(residuals_values) > (3 * sd(residuals_values)))
+            # Remove outliers only if any are detected
+            if (length(outlier_indices) > 0) {
+                df_tp_filtered <- df_tp[-outlier_indices, ]
+            } else {
+                df_tp_filtered <- df_tp  # No outliers, keep the original dataframe
+            }
+            
+            if (nrow(df_tp_filtered) < 2) next  # Ensure there are enough data points after outlier removal
+            
+            tryCatch({
+                # Pearson's correlation
+                x <- cor.test(df_tp_filtered$mean_capZ, df_tp_filtered$SPAN)
+                row <- data.frame(
+                    Subpopulation = subpop,
+                    Timepoint = tp,
+                    Gene = gene,
+                    GeneID = df_tp_filtered$GeneID[1],
+                    Gene_Group = df_tp_filtered$Gene_Group[1],
+                    N = nrow(df_tp_filtered),
+                    p.value = x$p.value,
+                    Estimate = x$estimate,
+                    Est_CI_Lower = x$conf.int[1],
+                    Est_CI_Upper = x$conf.int[2],
+                    Coefficient = NA,
+                    Coef_CI_Lower = NA,
+                    Coef_CI_Upper = NA  
+                )
+                
+                # Linear regression for coefficient and CI
+                lm_result <- lm(mean_capZ ~ SPAN, data = df_tp_filtered)
+                coef_x <- summary(lm_result)$coefficients[2, 1]
+                ci <- confint(lm_result)[2, ]
+                
+                row$Coefficient <- coef_x
+                row$Coef_CI_Lower <- ci[1]
+                row$Coef_CI_Upper <- ci[2]
+                
+                if (row$p.value<=0.05){
+                    titel <- paste(gene, " expression in ", subpop, " monocytes at ", tp," (All Samples)", sep="")
+                    file_name <- paste("LinReg_Plots_SPAN_capZ/",titel, ".png", sep = "")
+                    ggplot(data = df_tp_filtered, aes(x = SPAN, y = mean_capZ)) +
+                        geom_smooth(method = "glm", color = "black") +
+                        geom_point(aes(color = Timepoint), size = 2) +
+                        ggtitle(titel) +
+                        xlab("SPAN") +
+                        ylab(paste(gene, "expression (Z-scored from CT - CT Sample Median)")) +
+                        scale_color_manual(values = my_colors) +
+                        theme(text = element_text(size=14)) +
+                        theme(
+                            panel.background = element_rect(fill = "white", color = "black"),
+                            plot.background = element_rect(fill = "white", color = "black"),
+                            text = element_text(color = "black"),
+                            panel.grid.major = element_line(color = "gray", size = 0.2),
+                            panel.grid.minor = element_blank(),
+                            panel.grid.major.x = element_blank()
+                        )
+                    ggsave(filename=file_name)
+                }
+                SPAN_correlation_capZ <- rbind(SPAN_correlation_capZ, row)
+            }, error = function(e) {
+                cat("Error in Pearson's Correlation for gene", gene, "& Subpopulation with SPAN", subpop, "- skipping this comparison.\n")
+            })
+            
+            for (recovery in unique(df_tp$Recovery)) {
+                df_recovery <- df_tp %>% filter(Recovery == recovery, !is.na(SPAN))
+                # Outlier removal
+                lm_initial <- lm(mean_capZ ~ SPAN, data = df_recovery)
+                residuals_values <- residuals(lm_initial)
+                outlier_indices <- which(abs(residuals_values) > (3 * sd(residuals_values)))
+                # Remove outliers only if any are detected
+                if (length(outlier_indices) > 0) {
+                    df_recovery_filtered <- df_recovery[-outlier_indices, ]
+                } else {
+                    df_recovery_filtered <- df_recovery  # No outliers, keep the original dataframe
+                }
+                
+                if (nrow(df_recovery_filtered) < 2) next  # Ensure there are enough data points after outlier removal
+                
+                
+                tryCatch({
+                    # Pearson's correlation for recovery
+                    x <- cor.test(df_recovery_filtered$mean_capZ, df_recovery_filtered$SPAN)
+                    row <- data.frame(
+                        Subpopulation = subpop,
+                        Recovery = recovery,
+                        Timepoint = tp,
+                        Gene = gene,
+                        GeneID = df_recovery_filtered$GeneID[1],
+                        Gene_Group = df_recovery_filtered$Gene_Group[1],
+                        N = nrow(df_recovery_filtered),
+                        p.value = x$p.value,
+                        Estimate = x$estimate,
+                        Est_CI_Lower = x$conf.int[1],
+                        Est_CI_Upper = x$conf.int[2],
+                        Coefficient = NA,
+                        Coef_CI_Lower = NA,
+                        Coef_CI_Upper = NA  
+                    )
+                    
+                    # Linear regression for coefficient and CI
+                    lm_result_recovery <- lm(mean_capZ ~ SPAN, data = df_recovery_filtered)
+                    coef_x <- summary(lm_result_recovery)$coefficients[2, 1]
+                    ci <- confint(lm_result_recovery)[2, ]
+                    
+                    row$Coefficient <- coef_x
+                    row$Coef_CI_Lower <- ci[1]
+                    row$Coef_CI_Upper <- ci[2]
+                    
+                    if (row$p.value<=0.05){
+                        titel <- paste(gene, " expression in ", subpop, " monocytes at ", tp," ( ", recovery, " Samples)", sep="")
+                        file_name <- paste("LinReg_Plots_SPAN_capZ/",titel, ".png", sep = "")
+                        ggplot(data = df_recovery_filtered, aes(x = SPAN, y = mean_capZ)) +
+                            geom_smooth(method = "glm", color = "black") +
+                            geom_point(aes(color = recovery), size = 2) +
+                            ggtitle(titel) +
+                            xlab("SPAN") +
+                            ylab(paste(gene, "expression (Z-scored from CT - CT Sample Median)")) +
+                            scale_color_manual(values = c("Good" = "darkgreen", "Bad" = "#700606")) +
+                            theme(text = element_text(size=14)) +
+                            theme(
+                                panel.background = element_rect(fill = "white", color = "black"),
+                                plot.background = element_rect(fill = "white", color = "black"),
+                                text = element_text(color = "black"),
+                                panel.grid.major = element_line(color = "gray", size = 0.2),
+                                panel.grid.minor = element_blank(),
+                                panel.grid.major.x = element_blank()
+                            )
+                        ggsave(filename=file_name)
+                    }
+                    SPAN_correlation_Recovery_capZ <- rbind(SPAN_correlation_Recovery_capZ, row)
+                }, error = function(e) {
+                    cat("Error for", gene, tp, recovery, "&", subpop, "- skipping this comparison.\n")
+                }) 
+            }
+            
+            for (cat in unique(df_tp$Category)) {
+                df_cat <- df_tp %>% filter(Category == cat, !is.na(SPAN))
+                # Outlier removal
+                lm_initial <- lm(mean_capZ ~ SPAN, data = df_cat)
+                residuals_values <- residuals(lm_initial)
+                outlier_indices <- which(abs(residuals_values) > (3 * sd(residuals_values)))
+                # Remove outliers only if any are detected
+                if (length(outlier_indices) > 0) {
+                    df_cat_filtered <- df_cat[-outlier_indices, ]
+                } else {
+                    df_cat_filtered <- df_cat  # No outliers, keep the original dataframe
+                }
+                
+                if (nrow(df_cat_filtered) < 2) next  # Ensure there are enough data points after outlier removal
+                
+                tryCatch({
+                    # Pearson's correlation for Category
+                    x <- cor.test(df_cat_filtered$mean_capZ, df_cat_filtered$SPAN)
+                    row <- data.frame(
+                        Subpopulation = subpop,
+                        Category = cat,
+                        Timepoint = tp,
+                        Gene = gene,
+                        GeneID = df_cat_filtered$GeneID[1],
+                        Gene_Group = df_cat_filtered$Gene_Group[1],
+                        N = nrow(df_cat_filtered),
+                        p.value = x$p.value,
+                        Estimate = x$estimate,
+                        Est_CI_Lower = x$conf.int[1],
+                        Est_CI_Upper = x$conf.int[2],
+                        Coefficient = NA,
+                        Coef_CI_Lower = NA,
+                        Coef_CI_Upper = NA  
+                    )
+                    
+                    # Linear regression for coefficient and CI
+                    lm_result_cat <- lm(mean_capZ ~ SPAN, data = df_cat_filtered)
+                    coef_x <- summary(lm_result_cat)$coefficients[2, 1]
+                    ci <- confint(lm_result_cat)[2, ]
+                    
+                    row$Coefficient <- coef_x
+                    row$Coef_CI_Lower <- ci[1]
+                    row$Coef_CI_Upper <- ci[2]
+                    
+                    if (row$p.value<=0.05){
+                        titel <- paste(gene, " expression in ", subpop, " monocytes at ", tp," ( ", cat, " Samples)", sep="")
+                        file_name <- paste("LinReg_Plots_SPAN_capZ/",titel, ".png", sep = "")
+                        ggplot(data = df_cat_filtered, aes(x = SPAN, y = mean_capZ)) +
+                            geom_smooth(method = "glm", color = "black") +
+                            geom_point(aes(color = Category), size = 2) +
+                            ggtitle(titel) +
+                            xlab("SPAN") +
+                            ylab(paste(gene, "expression (Z-scored from CT - CT Sample Median)")) +
+                            scale_color_manual(values = c("MINOR" = "#A67C00", "MODERATE" = "#700606")) +
+                            theme(text = element_text(size=14)) +
+                            theme(
+                                panel.background = element_rect(fill = "white", color = "black"),
+                                plot.background = element_rect(fill = "white", color = "black"),
+                                text = element_text(color = "black"),
+                                panel.grid.major = element_line(color = "gray", size = 0.2),
+                                panel.grid.minor = element_blank(),
+                                panel.grid.major.x = element_blank()
+                            )
+                        ggsave(filename=file_name)
+                    }
+                    SPAN_correlation_Category_capZ <- rbind(SPAN_correlation_Category_capZ, row)
+                }, error = function(e) {
+                    cat("Error for", gene, tp, cat, "&", subpop, "- skipping this comparison.\n")
+                }) 
+            }
+        }
+    }
+}
+
+file_name <- "LinReg_Results_capZ/Pearson's Correlation_SPAN_capZ.csv"
+write.csv(SPAN_correlation_capZ, file_name, row.names = FALSE)
+
+file_name_s <- "LinReg_Results_capZ/Pearson's Correlation_SPAN_Recovery_capZ.csv"
+write.csv(SPAN_correlation_Recovery_capZ, file_name_s, row.names = FALSE)
+
+file_name_s <- "LinReg_Results_capZ/Pearson's Correlation_SPAN_Category_capZ.csv"
+write.csv(SPAN_correlation_Category_capZ, file_name_s, row.names = FALSE)
+
+#### Extract significant LinRegs --------------------------------------------------------
+
+SPAN_correlation_capZ$Recovery <- "All"
+SPAN_correlation_capZ$Category <- "All"
+SPAN_correlation_Recovery_capZ$Category <- "All"
+SPAN_correlation_Category_capZ$Recovery<- "All"
+
+All_SPAN_Pearson_capZ <- rbind(SPAN_correlation_capZ,SPAN_correlation_Recovery_capZ, SPAN_correlation_Category_capZ)
+SPAN_sigGenes_Pearson <- All_SPAN_Pearson_capZ %>% filter(All_SPAN_Pearson_capZ$p.value <0.05)
+write.csv(SPAN_sigGenes_Pearson, "LinReg_Results_capZ/SPAN_sigGenes_Pearson.csv", row.names = FALSE)
