@@ -866,6 +866,7 @@ dataEXPAND <- rbind(dataEXPAND, dataCTR)
 dataEXPAND$Comment <- ifelse(is.na(dataEXPAND$Sample), yes = "No Fludigm run, imputed Values",  no = dataEXPAND$Comment)
 
 #### Metadata & FACSdata---------------------------------------------------------------
+setwd("/Users/ju5263ta/Github/Monocytes/rawData_Stroke")
 metadataP <- read_excel("Metadata_PatientID.xlsx")
 Metadata_GeneID <- read_excel("Metadata_GeneID.xlsx")
 Plate_info <- read_excel("241014_PlateID.xlsx")
@@ -2980,7 +2981,7 @@ unique(sigGenes$Gene)
 sigGenes <- filter(NHISS_correlation_capZ, p.value <= 0.05) 
 unique(sigGenes$Gene)
 
-# *Demographics of Ctr & Patients -----------------------------------------------------------------------------
+# *Demographics of Ctr & Patients* -----------------------------------------------------------------------------
 
 # for FACS
 metadataP_FACS <- metadataP %>% filter(!SampleID %in% Unmatched_TP0_FACS)
@@ -2990,4 +2991,213 @@ write.csv(Demographics_FACS, file = "Demographics_FACS.csv", row.names = FALSE)
 metadataP_Gene <- metadataP %>% filter(SampleID %in% unique(data_mean_matched$SampleID))
 Demographics_Gene <- demographics_N_Age_Sex(metadataP_Gene)
 write.csv(Demographics_Gene, file = "Demographics_Gene.csv", row.names = FALSE)
+
+# *Age & NHISS correlation* -----------------------------------------------------------------------------
+folder <- "LinReg_AgeVsNHISS"
+createFolder(folder)
+
+Metadata_NHISS <- merge(Metadata_NHISS, metadataP, by = "SampleID")
+Metadata_NHISS  <- Metadata_NHISS  %>% filter(!is.na(NHISS), !is.na(Age), !is.na(Timepoint))
+
+AgeVsNHISS_correlation <- data.frame(Group = character(), Timepoint = character(), N = numeric(), p.value = numeric(), Estimate = numeric(), Est_CI_Lower = numeric(), Est_CI_Upper = numeric(), Coefficient = numeric(), Coef_CI_Lower = numeric(), Coef_CI_Upper = numeric())
+
+for (tp in unique(Metadata_NHISS$Timepoint)) {
+    Metadata_NHISS_tp <- Metadata_NHISS %>% filter(Timepoint == tp)
+    
+    if (nrow(Metadata_NHISS_tp) <= 0) next
+    # Outlier removal
+    lm_initial <- lm(NHISS ~ Age, data = Metadata_NHISS_tp)
+    residuals_values <- residuals(lm_initial)
+    outlier_indices <- which(abs(residuals_values) > (3 * sd(residuals_values)))
+    # Remove outliers only if any are detected
+    if (length(outlier_indices) > 0) {
+        Metadata_NHISS_tp_filtered <- Metadata_NHISS_tp[-outlier_indices, ]
+    } else {
+        Metadata_NHISS_tp_filtered <- Metadata_NHISS_tp  # No outliers, keep the original dataframe
+    }
+    
+    if (nrow(Metadata_NHISS_tp_filtered) < 2) next  # Ensure there are enough data points after outlier removal
+    
+    tryCatch({
+        # Pearson's correlation
+        x <- cor.test(Metadata_NHISS_tp_filtered$NHISS, Metadata_NHISS_tp_filtered$Age)
+        row <- data.frame(
+            Group = "All",
+            Timepoint = tp,
+            N = nrow(Metadata_NHISS_tp_filtered),
+            p.value = x$p.value,
+            Estimate = x$estimate,
+            Est_CI_Lower = x$conf.int[1],
+            Est_CI_Upper = x$conf.int[2],
+            Coefficient = NA,
+            Coef_CI_Lower = NA,
+            Coef_CI_Upper = NA  
+        )
+        
+        # Linear regression for coefficient and CI
+        lm_result <- lm(NHISS ~ Age, data = Metadata_NHISS_tp_filtered)
+        coef_x <- summary(lm_result)$coefficients[2, 1]
+        ci <- confint(lm_result)[2, ]
+        
+        row$Coefficient <- coef_x
+        row$Coef_CI_Lower <- ci[1]
+        row$Coef_CI_Upper <- ci[2]
+        
+            titel <- paste("Age vs NHISS at ", tp," (All Samples)", sep="")
+            file_name <- paste("LinReg_AgeVsNHISS/",titel, ".png", sep = "")
+            ggplot(data = Metadata_NHISS_tp_filtered, aes(x = Age, y = NHISS)) +
+                geom_smooth(method = "glm", color = "black") +
+                geom_point(aes(color = Timepoint), size = 2) +
+                ggtitle(titel) +
+                xlab("Age") +
+                ylab("NHISS") +
+                scale_color_manual(values = my_colors) +
+                theme(text = element_text(size=14)) +
+                theme(
+                    panel.background = element_rect(fill = "white", color = "black"),
+                    plot.background = element_rect(fill = "white", color = "black"),
+                    text = element_text(color = "black"),
+                    panel.grid.major = element_line(color = "gray", size = 0.2),
+                    panel.grid.minor = element_blank(),
+                    panel.grid.major.x = element_blank()
+                )
+            ggsave(filename=file_name)
+            
+        AgeVsNHISS_correlation <- rbind(AgeVsNHISS_correlation, row)
+    }, error = function(e) {
+        cat("Error in Pearson's Correlation for timepoint", tp, "- skipping this comparison.\n")
+    })
+    for (sex in unique(Metadata_NHISS_tp$Sex)) {
+        Metadata_NHISS_sex <- Metadata_NHISS_tp %>% filter(Sex == sex)
+        # Outlier removal
+        lm_initial <- lm(NHISS ~ Age, data = Metadata_NHISS_sex)
+        residuals_values <- residuals(lm_initial)
+        outlier_indices <- which(abs(residuals_values) > (3 * sd(residuals_values)))
+        # Remove outliers only if any are detected
+        if (length(outlier_indices) > 0) {
+            Metadata_NHISS_sex_filtered <- Metadata_NHISS_sex[-outlier_indices, ]
+        } else {
+            Metadata_NHISS_sex_filtered <- Metadata_NHISS_sex  # No outliers, keep the original dataframe
+        }
+        
+        if (nrow(Metadata_NHISS_sex_filtered) < 2) next  # Ensure there are enough data points after outlier removal
+        
+        
+        tryCatch({
+            # Pearson's correlation for Sex
+            x <- cor.test(Metadata_NHISS_sex_filtered$NHISS, Metadata_NHISS_sex_filtered$Age)
+            row <- data.frame(
+                Group = sex,
+                Timepoint = tp,
+                N = nrow(Metadata_NHISS_sex_filtered),
+                p.value = x$p.value,
+                Estimate = x$estimate,
+                Est_CI_Lower = x$conf.int[1],
+                Est_CI_Upper = x$conf.int[2],
+                Coefficient = NA,
+                Coef_CI_Lower = NA,
+                Coef_CI_Upper = NA  
+            )
+            
+            # Linear regression for coefficient and CI
+            lm_result_sex <- lm(NHISS ~ Age, data = Metadata_NHISS_sex_filtered)
+            coef_x <- summary(lm_result_sex)$coefficients[2, 1]
+            ci <- confint(lm_result_sex)[2, ]
+            
+            row$Coefficient <- coef_x
+            row$Coef_CI_Lower <- ci[1]
+            row$Coef_CI_Upper <- ci[2]
+            
+            titel <- paste("Age vs NHISS at ", tp," (",sex, " Samples)", sep="")
+            file_name <- paste("LinReg_AgeVsNHISS/",titel, ".png", sep = "")
+            ggplot(data = Metadata_NHISS_sex_filtered, aes(x = Age, y = NHISS)) +
+                    geom_smooth(method = "glm", color = "black") +
+                    geom_point(aes(color = Sex), size = 2) +
+                    ggtitle(titel) +
+                    xlab("Age") +
+                    ylab("NHISS") +
+                    scale_color_manual(values = c("M" = "#A67C00", "F" = "#1D04C2")) +
+                    theme(text = element_text(size=14)) +
+                    theme(
+                        panel.background = element_rect(fill = "white", color = "black"),
+                        plot.background = element_rect(fill = "white", color = "black"),
+                        text = element_text(color = "black"),
+                        panel.grid.major = element_line(color = "gray", size = 0.2),
+                        panel.grid.minor = element_blank(),
+                        panel.grid.major.x = element_blank()
+                    )
+                ggsave(filename=file_name)
+                AgeVsNHISS_correlation <- rbind(AgeVsNHISS_correlation, row)
+        }, error = function(e) {
+            cat("Error for", tp, "&", sex, "- skipping this comparison.\n")
+        }) 
+    }
+    for (cat in unique(Metadata_NHISS_tp$Category)) {
+        Metadata_NHISS_cat <- Metadata_NHISS_tp %>% filter(Category == cat)
+        # Outlier removal
+        lm_initial <- lm(NHISS ~ Age, data = Metadata_NHISS_cat)
+        residuals_values <- residuals(lm_initial)
+        outlier_indices <- which(abs(residuals_values) > (3 * sd(residuals_values)))
+        # Remove outliers only if any are detected
+        if (length(outlier_indices) > 0) {
+            Metadata_NHISS_cat_filtered <- Metadata_NHISS_cat[-outlier_indices, ]
+        } else {
+            Metadata_NHISS_cat_filtered <- Metadata_NHISS_cat  # No outliers, keep the original dataframe
+        }
+        
+        if (nrow(Metadata_NHISS_cat_filtered) < 2) next  # Ensure there are enough data points after outlier removal
+        
+        tryCatch({
+            # Pearson's correlation for Category
+            x <- cor.test(Metadata_NHISS_cat_filtered$NHISS, Metadata_NHISS_cat_filtered$Age)
+            row <- data.frame(
+                Group = cat,
+                Timepoint = tp,
+                N = nrow(Metadata_NHISS_cat_filtered),
+                p.value = x$p.value,
+                Estimate = x$estimate,
+                Est_CI_Lower = x$conf.int[1],
+                Est_CI_Upper = x$conf.int[2],
+                Coefficient = NA,
+                Coef_CI_Lower = NA,
+                Coef_CI_Upper = NA  
+            )
+            
+            # Linear regression for coefficient and CI
+            lm_result_cat <- lm(NHISS ~ Age, data = Metadata_NHISS_cat_filtered)
+            coef_x <- summary(lm_result_cat)$coefficients[2, 1]
+            ci <- confint(lm_result_cat)[2, ]
+            
+            row$Coefficient <- coef_x
+            row$Coef_CI_Lower <- ci[1]
+            row$Coef_CI_Upper <- ci[2]
+            
+            titel <- paste("Age vs NHISS at ", tp, " (", cat, " Samples)", sep="")
+            file_name <- paste("LinReg_AgeVsNHISS/", titel, ".png", sep="")
+            ggplot(data = Metadata_NHISS_cat_filtered, aes(x = Age, y = NHISS)) +
+                geom_smooth(method = "glm", color = "black") +
+                geom_point(aes(color = Category), size = 2) +
+                ggtitle(titel) +
+                xlab("Age") +
+                ylab("NHISS") +
+                scale_color_manual(values = c("MINOR" = "#A67C00", "MODERATE" = "#700606")) +
+                theme(text = element_text(size=14)) +
+                theme(
+                    panel.background = element_rect(fill = "white", color = "black"),
+                    plot.background = element_rect(fill = "white", color = "black"),
+                    text = element_text(color = "black"),
+                    panel.grid.major = element_line(color = "gray", size = 0.2),
+                    panel.grid.minor = element_blank(),
+                    panel.grid.major.x = element_blank()
+                )
+            ggsave(filename = file_name)
+            AgeVsNHISS_correlation <- rbind(AgeVsNHISS_correlation, row)
+        }, error = function(e) {
+            cat("Error for", tp, "&", cat, "- skipping this comparison.\n")
+        }) 
+    }
+}
+    
+file_name_s<- "LinReg_AgeVsNHISS/Pearson's Correlation_AgeVsNHISS.csv"
+write.csv(AgeVsNHISS_correlation, file_name_s, row.names = FALSE)
 
