@@ -3462,63 +3462,63 @@ write.csv(SPAN_sigGenes_Pearson, "LinReg_Results_capZ/SPAN_sigGenes_Pearson.csv"
 # *Sig Regression - Gene Overview* --------------------------
 # with a mean for all Timepoints
 Gene_Overview_Age <- Age_correlation_capZ %>%
-    filter(p.value < 0.05) %>% 
+    filter(p.value <= 0.05) %>% 
     group_by(Subpopulation, Gene)%>%
-    summarise(Age_Estimate = mean(Estimate, na.rm = TRUE))
+    summarise(Age_Correlation = mean(Estimate, na.rm = TRUE))
 
 Gene_Overview_NHISS <- NHISS_correlation_capZ %>%
-    filter(p.value < 0.05) %>% 
+    filter(p.value <= 0.05) %>% 
     group_by(Subpopulation, Gene)%>%
-    summarise(NHISS_Estimate = mean(Estimate, na.rm = TRUE))
+    summarise(NHISS_Correlation = mean(Estimate, na.rm = TRUE))
 
 Gene_Overview_SPAN <- SPAN_correlation_capZ %>%
-    filter(p.value < 0.05) %>% 
+    filter(p.value <= 0.05) %>% 
     group_by(Subpopulation, Gene)%>%
-    summarise(SPAN_Estimate = mean(Estimate, na.rm = TRUE))
+    summarise(SPAN_Correlation = mean(Estimate, na.rm = TRUE))
 
 Gene_Overview_woTP <- merge(Gene_Overview_Age,
                        Gene_Overview_NHISS, 
                        by = c("Gene", "Subpopulation"), 
-                       all.x = TRUE)
+                       all = TRUE)
 
 Gene_Overview_woTP <- merge(Gene_Overview_woTP,
                        Gene_Overview_SPAN, 
                        by = c("Gene", "Subpopulation"), 
-                       all.x = TRUE)
+                       all = TRUE)
 
 # table including the details for the timepoints
 Gene_Overview_NHISS <- NHISS_correlation_capZ %>%
-    filter(p.value < 0.05) %>% 
+    filter(p.value <= 0.05) %>% 
     group_by(Subpopulation, Gene, Timepoint) %>%
-    summarise(NHISS_Estimate = Estimate)
+    summarise(NHISS_Correlation = Estimate)
 
 Gene_Overview_SPAN <- SPAN_correlation_capZ %>%
-    filter(p.value < 0.05) %>% 
+    filter(p.value <= 0.05) %>% 
     group_by(Subpopulation, Gene, Timepoint) %>%
-    summarise(SPAN_Estimate = Estimate)
+    summarise(SPAN_Correlation = Estimate)
 
 Gene_Overview_Age <- Age_correlation_capZ %>%
-    filter(p.value < 0.05) %>% 
+    filter(p.value <= 0.05) %>% 
     group_by(Subpopulation, Gene, Timepoint) %>%
-    summarise(Age_Estimate = Estimate)
+    summarise(Age_Correlation = Estimate)
 
 Gene_Overview <- merge(Gene_Overview_Age,
                        Gene_Overview_NHISS, 
                        by = c("Gene", "Subpopulation", "Timepoint"), 
-                       all.x = TRUE)
+                       all = TRUE)
 
 Gene_Overview <- merge(Gene_Overview,
                        Gene_Overview_SPAN, 
                        by = c("Gene", "Subpopulation", "Timepoint"), 
-                       all.x = TRUE)
+                       all = TRUE)
     
 # Replace the Estimated with the arrows!    
 Gene_Overview_woTP <- Gene_Overview_woTP %>%
-    mutate(across(c(Age_Estimate, NHISS_Estimate, SPAN_Estimate), 
-                  ~ ifelse(. > 0, "↑", "↓")))
+    mutate(across(c(Age_Correlation, NHISS_Correlation, SPAN_Correlation), 
+                  ~ ifelse(is.na(.), "-", ifelse(. > 0, "↑", "↓"))))
 Gene_Overview <- Gene_Overview %>%
-    mutate(across(c(Age_Estimate, NHISS_Estimate, SPAN_Estimate), 
-                  ~ ifelse(. > 0, "↑", "↓")))
+    mutate(across(c(Age_Correlation, NHISS_Correlation, SPAN_Correlation), 
+                  ~ ifelse(is.na(.), "-", ifelse(. > 0, "↑", "↓"))))
 
 # Save the files:
 file_name_s <- "LinReg_Results_capZ/Gene_Overview_woTP.csv"
