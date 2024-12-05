@@ -3525,4 +3525,218 @@ for (tp in unique(Metadata_NHISS$Timepoint)) {
 file_name_s<- "LinReg_AgeVsNHISS/Pearson's Correlation_AgeVsNHISS.csv"
 write.csv(AgeVsNHISS_correlation, file_name_s, row.names = FALSE)
 
+# *NHISS_End Regression* --------------------------------------------------------
+# Correlation with "final" NHISS
+dataFINALmean$NHISS_End <- NA
+# Assign values from NHISS where Timepoint is TP4
+dataFINALmean$NHISS_End[dataFINALmean$Timepoint == "TP4"] <- dataFINALmean$NHISS[dataFINALmean$Timepoint == "TP4"]
+dataFINALmean$NHISS_End[dataFINALmean$Timepoint == "TP3"] <- dataFINALmean$NHISS[dataFINALmean$Timepoint == "TP4"]
+dataFINALmean$NHISS_End[dataFINALmean$Timepoint == "TP2"] <- dataFINALmean$NHISS[dataFINALmean$Timepoint == "TP4"]
+dataFINALmean$NHISS_End[dataFINALmean$Timepoint == "TP1"] <- dataFINALmean$NHISS[dataFINALmean$Timepoint == "TP4"]
 
+#### Pearson Gene vs End Point NHISS --------------------------------------------------------
+createFolder("LinReg_Plots_NHISS_End_capZ")
+
+# Pearson's Correlation uses linear relationship to correlate the data
+# Initialize dataframes to store correlation results
+NHISS_End_correlation_capZ <- data.frame(Subpopulation = character(), Timepoint = character(), Gene = character(), GeneID = numeric(), Gene_Group = character(), N = numeric(), p.value = numeric(), Estimate = numeric(), Est_CI_Lower = numeric(), Est_CI_Upper = numeric(), Coefficient = numeric(), Coef_CI_Lower = numeric(), Coef_CI_Upper = numeric())
+
+for (gene in unique(dataFINALmean$Gene)) {
+    df <- dataFINALmean %>% filter(Gene == gene)
+    df <- df %>% filter(!is.na(Timepoint), !is.na(mean_capZ), !is.na(Subpopulation), !is.na(NHISS_End))
+    
+    for (subpop in unique(df$Subpopulation)) {
+        df_subpop <- df %>% filter(Subpopulation == subpop)
+        
+        for (tp in unique(df_subpop$Timepoint)) {
+            df_tp <- df_subpop %>% filter(Timepoint == tp)
+            if (nrow(df_tp) <= 0) next
+            
+            # Outlier removal
+            lm_initial <- lm(mean_capZ ~ NHISS_End, data = df_tp)
+            residuals_values <- residuals(lm_initial)
+            outlier_indices <- which(abs(residuals_values) > (3 * sd(residuals_values)))
+            # Remove outliers only if any are detected
+            if (length(outlier_indices) > 0) {
+                df_tp_filtered <- df_tp[-outlier_indices, ]
+            } else {
+                df_tp_filtered <- df_tp  # No outliers, keep the original dataframe
+            }
+            
+            if (nrow(df_tp_filtered) < 2) next  # Ensure there are enough data points after outlier removal
+            
+            tryCatch({
+                # Pearson's correlation
+                x <- cor.test(df_tp_filtered$mean_capZ, df_tp_filtered$NHISS_End)
+                row <- data.frame(
+                    Subpopulation = subpop,
+                    Timepoint = tp,
+                    Gene = gene,
+                    GeneID = df_tp_filtered$GeneID[1],
+                    Gene_Group = df_tp_filtered$Gene_Group[1],
+                    N = nrow(df_tp_filtered),
+                    p.value = x$p.value,
+                    Estimate = x$estimate,
+                    Est_CI_Lower = x$conf.int[1],
+                    Est_CI_Upper = x$conf.int[2],
+                    Coefficient = NA,
+                    Coef_CI_Lower = NA,
+                    Coef_CI_Upper = NA  
+                )
+                
+                # Linear regression for coefficient and CI
+                lm_result <- lm(mean_capZ ~ NHISS_End, data = df_tp_filtered)
+                coef_x <- summary(lm_result)$coefficients[2, 1]
+                ci <- confint(lm_result)[2, ]
+                
+                row$Coefficient <- coef_x
+                row$Coef_CI_Lower <- ci[1]
+                row$Coef_CI_Upper <- ci[2]
+                
+                if (row$p.value<=0.05){
+                    titel <- paste(gene, " expression in ", subpop, " monocytes at ", tp," (All Samples)", sep="")
+                    file_name <- paste("LinReg_Plots_NHISS_End_capZ/",titel, ".png", sep = "")
+                    ggplot(data = df_tp_filtered, aes(x = NHISS_End, y = mean_capZ)) +
+                        geom_smooth(method = "glm", color = "black") +
+                        geom_point(aes(color = Timepoint), size = 2) +
+                        ggtitle(titel) +
+                        xlab("NHISS_End") +
+                        ylab(paste(gene, "expression (Z-scored from CT - CT Sample Median)")) +
+                        scale_color_manual(values = my_colors) +
+                        theme(text = element_text(size=14)) +
+                        theme(
+                            panel.background = element_rect(fill = "white", color = "black"),
+                            plot.background = element_rect(fill = "white", color = "black"),
+                            text = element_text(color = "black"),
+                            panel.grid.major = element_line(color = "gray", size = 0.2),
+                            panel.grid.minor = element_blank(),
+                            panel.grid.major.x = element_blank()
+                        )
+                    ggsave(filename=file_name)
+                }
+                NHISS_End_correlation_capZ <- rbind(NHISS_End_correlation_capZ, row)
+            }, error = function(e) {
+                cat("Error in Pearson's Correlation for gene", gene, "& Subpopulation with NHISS_End", subpop, "- skipping this comparison.\n")
+            })
+        }
+    }
+}
+
+file_name <- "LinReg_Results_capZ/Pearson's Correlation_NHISS_End_capZ.csv"
+write.csv(NHISS_End_correlation_capZ, file_name, row.names = FALSE)
+
+NHISS_End_sigGenes_Pearson <- NHISS_End_correlation_capZ %>% filter(NHISS_End_correlation_capZ$p.value <0.05)
+write.csv(NHISS_End_sigGenes_Pearson, "LinReg_Results_capZ/NHISS_End_sigGenes_Pearson.csv", row.names = FALSE)
+
+# *NHISS_Diff Regression* --------------------------------------------------------
+# Create a new column NHISS_Diff initialized to NA
+dataFINALmean$NHISS_Diff <- NA
+
+# Calculate the difference for each SampleID
+dataFINALmean <- dataFINALmean %>%
+    group_by(SampleID, Subpopulation, Gene) %>%
+    mutate(
+        NHISS_Diff = if (all(c("TP1", "TP4") %in% Timepoint)) {
+            NHISS[Timepoint == "TP1"] - NHISS[Timepoint == "TP4"]
+        } else {
+            NA
+        }
+    ) %>%
+    ungroup()
+
+#### Pearson Gene vs Diff in NHISS --------------------------------------------------------
+createFolder("LinReg_Plots_NHISS_Diff_capZ")
+
+# Pearson's Correlation uses linear relationship to correlate the data
+# Initialize dataframes to store correlation results
+NHISS_Diff_correlation_capZ <- data.frame(Subpopulation = character(), Timepoint = character(), Gene = character(), GeneID = numeric(), Gene_Group = character(), N = numeric(), p.value = numeric(), Estimate = numeric(), Est_CI_Lower = numeric(), Est_CI_Upper = numeric(), Coefficient = numeric(), Coef_CI_Lower = numeric(), Coef_CI_Upper = numeric())
+
+# gene <- "CD38"
+# subpop <- "all"
+# tp <- "TP1"
+for (gene in unique(dataFINALmean$Gene)) {
+    df <- dataFINALmean %>% filter(Gene == gene)
+    df <- df %>% filter(!is.na(Timepoint), !is.na(mean_capZ), !is.na(Subpopulation), !is.na(NHISS_End))
+    
+    for (subpop in unique(df$Subpopulation)) {
+        df_subpop <- df %>% filter(Subpopulation == subpop)
+        
+        for (tp in unique(df_subpop$Timepoint)) {
+            df_tp <- df_subpop %>% filter(Timepoint == tp, !is.na(NHISS_Diff))
+            if (nrow(df_tp) <= 0) next
+            
+            # Outlier removal
+            lm_initial <- lm(mean_capZ ~ NHISS_Diff, data = df_tp)
+            residuals_values <- residuals(lm_initial)
+            outlier_indices <- which(abs(residuals_values) > (3 * sd(residuals_values)))
+            # Remove outliers only if any are detected
+            if (length(outlier_indices) > 0) {
+                df_tp_filtered <- df_tp[-outlier_indices, ]
+            } else {
+                df_tp_filtered <- df_tp  # No outliers, keep the original dataframe
+            }
+            
+            if (nrow(df_tp_filtered) < 2) next  # Ensure there are enough data points after outlier removal
+            
+            tryCatch({
+                # Pearson's correlation
+                x <- cor.test(df_tp_filtered$mean_capZ, df_tp_filtered$NHISS_Diff)
+                row <- data.frame(
+                    Subpopulation = subpop,
+                    Timepoint = tp,
+                    Gene = gene,
+                    GeneID = df_tp_filtered$GeneID[1],
+                    Gene_Group = df_tp_filtered$Gene_Group[1],
+                    N = nrow(df_tp_filtered),
+                    p.value = x$p.value,
+                    Estimate = x$estimate,
+                    Est_CI_Lower = x$conf.int[1],
+                    Est_CI_Upper = x$conf.int[2],
+                    Coefficient = NA,
+                    Coef_CI_Lower = NA,
+                    Coef_CI_Upper = NA  
+                )
+                
+                # Linear regression for coefficient and CI
+                lm_result <- lm(mean_capZ ~ NHISS_Diff, data = df_tp_filtered)
+                coef_x <- summary(lm_result)$coefficients[2, 1]
+                ci <- confint(lm_result)[2, ]
+                
+                row$Coefficient <- coef_x
+                row$Coef_CI_Lower <- ci[1]
+                row$Coef_CI_Upper <- ci[2]
+                
+                if (row$p.value<=0.05){
+                    titel <- paste(gene, " expression in ", subpop, " monocytes at ", tp," (All Samples)", sep="")
+                    file_name <- paste("LinReg_Plots_NHISS_Diff_capZ/",titel, ".png", sep = "")
+                    ggplot(data = df_tp_filtered, aes(x = NHISS_Diff, y = mean_capZ)) +
+                        geom_smooth(method = "glm", color = "black") +
+                        geom_point(aes(color = Timepoint), size = 2) +
+                        ggtitle(titel) +
+                        xlab("NHISS_Diff") +
+                        ylab(paste(gene, "expression (Z-scored from CT - CT Sample Median)")) +
+                        scale_color_manual(values = my_colors) +
+                        theme(text = element_text(size=14)) +
+                        theme(
+                            panel.background = element_rect(fill = "white", color = "black"),
+                            plot.background = element_rect(fill = "white", color = "black"),
+                            text = element_text(color = "black"),
+                            panel.grid.major = element_line(color = "gray", size = 0.2),
+                            panel.grid.minor = element_blank(),
+                            panel.grid.major.x = element_blank()
+                        )
+                    ggsave(filename=file_name)
+                }
+                NHISS_Diff_correlation_capZ <- rbind(NHISS_Diff_correlation_capZ, row)
+            }, error = function(e) {
+                cat("Error in Pearson's Correlation for gene", gene, "& Subpopulation with NHISS_Diff", subpop, "- skipping this comparison.\n")
+            })
+        }
+    }
+}
+
+file_name <- "LinReg_Results_capZ/Pearson's Correlation_NHISS_Diff_capZ.csv"
+write.csv(NHISS_Diff_correlation_capZ, file_name, row.names = FALSE)
+
+NHISS_Diff_sigGenes_Pearson <- NHISS_Diff_correlation_capZ %>% filter(NHISS_Diff_correlation_capZ$p.value <0.05)
+write.csv(NHISS_Diff_sigGenes_Pearson, "LinReg_Results_capZ/NHISS_Diff_sigGenes_Pearson.csv", row.names = FALSE)
