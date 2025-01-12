@@ -1454,6 +1454,18 @@ plot_my_pca(pca_result, data.meta, "Age", Gradient_colour[data.meta$Age])
 
 
 # *FACS Statistics* ----------------
+#### 1WAY ANOVA* ----------------------------------------------------------------------------------------------------
+# with wilcox
+ANOVA_FACSall <- automate_anova_extraction(output_location, "Wilcox_FACS_Plots", 
+                                                  "Wilcox_FACS", "y", FACSdata, colnames(FACSdata)[5:17], 
+                                                  "Timepoint")
+# paired t.test
+# FACSdata_matched <- FACSdata %>%
+#     filter(!SampleID %in% Unmatched_TP0_FACS)
+# 
+# paired_Ttest_FACS <- automate_ttest_extraction(output_location, "paired_Ttest_FACS_Plots",
+#                           "paired_Ttest_FACS", "y", FACSdata_matched, colnames(FACSdata_matched)[4:16],
+#                           "Timepoint")
 #### Linear regression -------------------------------------
 output_folder <- "LinReg_FACS_Plots_Age"
 if (!dir.exists(output_folder)) {
@@ -1683,18 +1695,6 @@ write.csv(NHISS_End_correlation_FACS, "NHISS_End_correlation_FACS.csv", row.name
 sigNHISS_End_correlation_FACS <- NHISS_End_correlation_FACS %>% filter(NHISS_End_correlation_FACS$p.value <0.05)
 write.csv(sigNHISS_End_correlation_FACS, "sigNHISS_End_correlation_FACS.csv", row.names = FALSE)
 
-#### 1WAY ANOVA* ----------------------------------------------------------------------------------------------------
-# with wilcox
-ANOVA_FACSall <- automate_anova_extraction(output_location, "Wilcox_FACS_Plots", 
-                                                  "Wilcox_FACS", "y", FACSdata, colnames(FACSdata)[5:17], 
-                                                  "Timepoint")
-# paired t.test
-# FACSdata_matched <- FACSdata %>%
-#     filter(!SampleID %in% Unmatched_TP0_FACS)
-# 
-# paired_Ttest_FACS <- automate_ttest_extraction(output_location, "paired_Ttest_FACS_Plots",
-#                           "paired_Ttest_FACS", "y", FACSdata_matched, colnames(FACSdata_matched)[4:16],
-#                           "Timepoint")
 
 #### Mean & SEM FACS----------------------------------------------------------------------------------------------------
 folder <- "MEAN_SEM_FACS_Sex"
