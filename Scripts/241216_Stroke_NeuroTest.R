@@ -3010,7 +3010,7 @@ ggplot(Predictors_End , aes(Gene_Combined2, Sample_Combo2, fill= Estimate)) +
     geom_tile(color = "white") +  # Add white grid lines
     scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
                          midpoint = 0, limits = c(-0.79, 0.68)) +
-    geom_text(aes(label = Significance), color = "white", size = 4, 
+    geom_text(aes(label = Significance), color = "white", size = 10, 
               hjust = 0.5, vjust = 0.5) +  # Center the text in the squares
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
@@ -3074,7 +3074,7 @@ ggplot(Predictors_Diff , aes(Gene_Combined2, Sample_Combo2, fill= Estimate)) +
     geom_tile(color = "white") +  # Add white grid lines
     scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
                          midpoint = 0, limits = c(-0.7, 0.6)) +
-    geom_text(aes(label = Significance), color = "white", size = 4, 
+    geom_text(aes(label = Significance), color = "white", size = 10, 
               hjust = 0.5, vjust = 0.5) +  # Center the text in the squares
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
@@ -3138,7 +3138,7 @@ ggplot(Predictors_Ratio , aes(Gene_Combined2, Sample_Combo2, fill= Estimate)) +
     geom_tile(color = "white") +  # Add white grid lines
     scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
                          midpoint = 0, limits = c(-0.7, 0.8)) +
-    geom_text(aes(label = Significance), color = "white", size = 4, 
+    geom_text(aes(label = Significance), color = "white", size = 10, 
               hjust = 0.5, vjust = 0.5) +  # Center the text in the squares
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
