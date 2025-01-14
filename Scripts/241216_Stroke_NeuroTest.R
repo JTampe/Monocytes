@@ -839,17 +839,17 @@ perform_linear_regression_correlation <- function(data, variable, folder_prefix)
                 correlation_results <- append_correlation_results(df_tp_filtered, variable, 
                                                                   gene, subpop, tp, "All", "All", correlation_results, plot_folder)
                 
-                # Subgroup analysis for Sex, Category, and Recovery
-                for (subgroup in c("Sex", "Category", "Recovery")) {
-                    for (value in unique(df_tp[[subgroup]])) {
-                        df_subgroup <- df_tp %>% filter(.data[[subgroup]] == value)
-                        df_subgroup_filtered <- remove_outliers(df_subgroup, variable)
-                        if (nrow(df_subgroup_filtered) == 0) next
-                        
-                        correlation_results <- append_correlation_results(df_subgroup_filtered, variable, 
-                                                                          gene, subpop, tp, subgroup, value, correlation_results, plot_folder)
-                    }
-                }
+                # # Subgroup analysis for Sex, Category, and Recovery
+                # for (subgroup in c("Sex", "Category", "Recovery")) {
+                #     for (value in unique(df_tp[[subgroup]])) {
+                #         df_subgroup <- df_tp %>% filter(.data[[subgroup]] == value)
+                #         df_subgroup_filtered <- remove_outliers(df_subgroup, variable)
+                #         if (nrow(df_subgroup_filtered) == 0) next
+                #         
+                #         correlation_results <- append_correlation_results(df_subgroup_filtered, variable, 
+                #                                                           gene, subpop, tp, subgroup, value, correlation_results, plot_folder)
+                #    }
+                #}
             }
         }
     }
@@ -1267,8 +1267,10 @@ dataFINAL <- dataFINAL %>%
 
 #### Gene & NHISS Metadata  ----------------
 ## Gene Metadata & other edits:
-Gene_Info <- data.frame(Gene = Metadata_GeneID$Gene, GeneID = Metadata_GeneID$GeneID, Gene_Group = Metadata_GeneID$Gene_Group)
-dataFINAL <- merge(dataFINAL, Gene_Info, by = "Gene")
+#Gene_Info <- data.frame(Gene = Metadata_GeneID$Gene, GeneID = Metadata_GeneID$GeneID, Gene_Group = Metadata_GeneID$Gene_Group)
+#dataFINAL <- merge(dataFINAL, Gene_Info, by = "Gene")
+dataFINAL <- merge(dataFINAL, Metadata_GeneID, by = "Gene")
+
 # add the metadata of NHISS score of Patients
 dataFINAL <- merge(dataFINAL, Metadata_NeuroTest, by = c("SampleID", "Timepoint"), all.x = TRUE)
 
@@ -1666,7 +1668,7 @@ for (i in 9:12) {
              title = paste("Mean ± SEM of", cells_colname, "by Recovery across Timepoints")) +
         scale_color_manual(values = c("Good" = "darkgreen",  "Bad" = "#1D04C2")) +
         theme_bw() +
-        scale_y_continuous(limits = c(0, max_y_value)) +  # Dynamically set y-axis limits
+        #scale_y_continuous(limits = c(0, max_y_value)) +  # Dynamically set y-axis limits
         theme(
             panel.grid.major = element_line(size = 0.2, linetype = 'solid', color = "gray80"), 
             panel.grid.minor = element_blank(), 
@@ -1684,7 +1686,39 @@ for (i in 9:12) {
         ggsave(filename = file_name_facet, plot = p)
     }
 }
-
+  
+  ggline(df_subpop_clean, 
+         x = "Timepoint", 
+         y = "data_column", 
+         color = "Recovery", 
+         add = "mean_se",  # Add mean and standard error
+         size = 1.2,
+         ylim = c(5, 25)) +  
+      labs(y = paste(cells_colname, "percentage"), 
+           title = paste("Mean ± SEM of", cells_colname, "by Recovery across Timepoints")) +
+      scale_color_manual(values = c("Good" = "darkgreen",  "Bad" = "#1D04C2")) +
+    theme_bw() +
+      theme(
+          panel.grid.major = element_line(size = 0.2, linetype = 'solid', color = "gray80"), 
+          panel.grid.minor = element_blank(), 
+          panel.border = element_blank(),
+          axis.line = element_line(color = "black")
+      ) +
+      scale_x_discrete(labels = c(
+          "TP0" = "Control",
+          "TP1" = "24 hours",
+          "TP2" = "3-5 days",
+          "TP3" = "1 month",
+          "TP4" = "3 months"
+      )) +
+      stat_compare_means(method = "wilcox.test",  # or "t.test"
+                         aes(group = Recovery),
+                         label = "p.signif",  
+                         size = 5,
+                         label.y = 25)
+  
+ggsave(filename = "NonClassical Monocytes_Mean_SEM_RecoveryComparison.png")
+    
 results_FACS_Wilcox$TP0_Significance <- sapply(results_FACS_Wilcox$TP0_P_Value, get_significance)
 results_FACS_Wilcox$TP1_Significance <- sapply(results_FACS_Wilcox$TP1_P_Value, get_significance)
 results_FACS_Wilcox$TP2_Significance <- sapply(results_FACS_Wilcox$TP2_P_Value, get_significance)
@@ -2710,6 +2744,9 @@ dataFINALmean$NHISS_End[dataFINALmean$Timepoint == "TP1"] <- dataFINALmean$NHISS
 
 LinReg_NHISS_End_capZ <- perform_linear_regression_correlation(dataFINALmean, "NHISS_End", "NHISS_End")
 
+#Focus only on TP1 & TP2
+LinReg_NHISS_End_capZ2 <-LinReg_NHISS_End_capZ %>% filter(LinReg_NHISS_End_capZ$Timepoint == c("TP1", "TP2"))
+
 LinReg_NHISS_End_sigGenes <- LinReg_NHISS_End_capZ %>% filter(LinReg_NHISS_End_capZ$p.value <0.05)
 write.csv(LinReg_NHISS_End_sigGenes, "LinReg_Results_capZ/LinReg_NHISS_End_sigGenes.csv", row.names = FALSE)
 
@@ -2731,8 +2768,36 @@ dataFINALmean <- dataFINALmean %>%
 
 LinReg_NHISS_Diff_capZ <- perform_linear_regression_correlation(dataFINALmean, "NHISS_Diff", "NHISS_Diff")
 
+#Focus only on TP1 & TP2
+LinReg_NHISS_Diff_capZ <-LinReg_NHISS_Diff_capZ %>% filter(LinReg_NHISS_Diff_capZ$Timepoint == c("TP1", "TP2"))
+
 LinReg_NHISS_Diff_sigGenes <- LinReg_NHISS_Diff_capZ %>% filter(LinReg_NHISS_Diff_capZ$p.value <0.05)
 write.csv(LinReg_NHISS_Diff_sigGenes, "LinReg_Results_capZ/LinReg_NHISS_Diff_sigGenes.csv", row.names = FALSE)
+
+#### NHISS_Ratio Regression* --------------------------------------------------------
+# Create a new column NHISS_Diff initialized to NA
+dataFINALmean$NHISS_Ratio <- NA
+
+# Calculate the ratio for each SampleID
+dataFINALmean <- dataFINALmean %>%
+    group_by(SampleID, Subpopulation, Gene) %>%
+    mutate(
+        NHISS_Ratio = if (all(c("TP1", "TP4") %in% Timepoint)) {
+            (NHISS[Timepoint == "TP1"] - NHISS[Timepoint == "TP4"])/NHISS[Timepoint == "TP1"]
+        } else {
+            NA
+        }
+    ) %>%
+    ungroup()
+
+LinReg_NHISS_Ratio_capZ <- perform_linear_regression_correlation(dataFINALmean, "NHISS_Ratio", "NHISS_Ratio")
+
+#Focus only on TP1 & TP2
+LinReg_NHISS_Ratio_capZ <-LinReg_NHISS_Ratio_capZ %>% filter(LinReg_NHISS_Ratio_capZ$Timepoint == c("TP1", "TP2"))
+
+LinReg_NHISS_Ratio_sigGenes <- LinReg_NHISS_Ratio_capZ %>% filter(LinReg_NHISS_Ratio_capZ$p.value <0.05)
+write.csv(LinReg_NHISS_Ratio_sigGenes, "LinReg_Results_capZ/LinReg_NHISS_Ratio_sigGenes.csv", row.names = FALSE)
+
 
 # #### mRS Regression --------------------------------------------------------
 # LinReg_mRS_capZ <- perform_linear_regression_correlation(dataFINALmean, "mRS", "mRS")
@@ -2846,24 +2911,24 @@ new_folder <- "Pearsson_Heatmaps"
 createFolder(new_folder)
 
 #### NHISS_End (Estimate) -----------------------
-Predictors  <- LinReg_NHISS_End_capZ %>% filter(Subgroup == "All")
-Predictors  <- Predictors %>% filter(Timepoint !=  "TP0")
-Predictors  <- Predictors %>% filter(Timepoint !=  "TP4")
-Predictors  <- Predictors %>% filter(Timepoint !=  "TP3")
+Predictors_End  <- LinReg_NHISS_End_capZ %>% filter(Subgroup == "All")
+# Predictors_End   <- Predictors_End  %>% filter(Timepoint !=  "TP0")
+# Predictors_End   <- Predictors_End  %>% filter(Timepoint !=  "TP4")
+# Predictors_End   <- Predictors_End  %>% filter(Timepoint !=  "TP3")
 
 # Relabel the timepoints: PS = post-stroke
-Predictors$Timepoint[grep("TP1",Predictors$Timepoint)]  <- "24 hours PS"
-Predictors$Timepoint[grep("TP2",Predictors$Timepoint)]  <- "3-5 days PS"
+Predictors_End $Timepoint[grep("TP1",Predictors_End $Timepoint)]  <- "24 hours"
+Predictors_End $Timepoint[grep("TP2",Predictors_End $Timepoint)]  <- "3-5 days"
 
 # Create a new column for Timepoint and Subpopulation combination
-Predictors <- Predictors %>%
+Predictors_End  <- Predictors_End  %>%
     mutate(Sample_Combo2 = paste(Timepoint, Subpopulation, sep = "_"))
 
-Predictors <- Predictors %>%
+Predictors_End  <- Predictors_End  %>%
     mutate(Sample_Combo = paste(Subpopulation, Timepoint, sep = "_"))
 
 # Create a combined column for Gene and GeneID for better sorting
-Predictors <- Predictors %>%
+Predictors_End  <- Predictors_End  %>%
     mutate(Gene_Combined = paste(GeneID, Gene, sep = "_"))  # Combine GeneID and Gene
 
 # Create a linear gradient function for the original plots
@@ -2879,18 +2944,18 @@ linear_gradient <- function() {
 }
 
 # Ensure Sample_Combo is ordered alphabetically
-Predictors <- Predictors %>%
+Predictors_End  <- Predictors_End  %>%
     mutate(Sample_Combo = factor(Sample_Combo, levels = sort(unique(Sample_Combo))))
-Predictors <- Predictors %>%
+Predictors_End  <- Predictors_End  %>%
     mutate(Sample_Combo2 = factor(Sample_Combo2, levels = sort(unique(Sample_Combo2))))
 
-Predictors$Significance <- ifelse(Predictors$p.value < 0.001, "***",
-                                            ifelse(Predictors$p.value < 0.01, "**",
-                                                   ifelse(Predictors$p.value < 0.05, "*", "")))
+Predictors_End $Significance <- ifelse(Predictors_End $p.value < 0.001, "***",
+                                            ifelse(Predictors_End $p.value < 0.01, "**",
+                                                   ifelse(Predictors_End $p.value < 0.05, "*", "")))
 
 ####  Heatmap ---------
 name_plot <- "Correlation of acute (24 hours & 3-5 days PS) gene expr. with longterm NHISS (3 months PS) - by subtype"
-ggplot(Predictors, aes(Sample_Combo, Gene_Combined, fill= Estimate)) + 
+ggplot(Predictors_End , aes(Sample_Combo, Gene_Combined, fill= Estimate)) + 
     geom_tile() +
     scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
                          midpoint = 0, limits = c(-0.79, 0.79)) +
@@ -2903,7 +2968,7 @@ ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
        plot = last_plot(), width = 5, height = 10, dpi = 300)
 
 name_plot <- "Correlation of acute (24 hours & 3-5 days PS) gene expr. with longterm NHISS (3 months PS) - by subtype (transposed)"
-ggplot(Predictors, aes(Gene_Combined, Sample_Combo, fill= Estimate)) + 
+ggplot(Predictors_End , aes(Gene_Combined, Sample_Combo, fill= Estimate)) + 
     geom_tile() +
     scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
                          midpoint = 0, limits = c(-0.79, 0.68)) +
@@ -2912,12 +2977,12 @@ ggplot(Predictors, aes(Gene_Combined, Sample_Combo, fill= Estimate)) +
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
     labs(title = name_plot, y = "Timepoint & Suptype", x = "Gene", fill = "Estimate")+
-    scale_y_discrete(limits = rev(levels(Predictors$Sample_Combo))) 
+    scale_y_discrete(limits = rev(levels(Predictors_End $Sample_Combo))) 
 ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
        plot = last_plot(), width = 15, height = 5, dpi = 300)
 
 name_plot <- "Correlation of acute (24 hours & 3-5 days PS) gene expr. with longterm NHISS (3 months PS)"
-ggplot(Predictors, aes(Gene_Combined, Sample_Combo2, fill= Estimate)) + 
+ggplot(Predictors_End , aes(Gene_Combined, Sample_Combo2, fill= Estimate)) + 
     geom_tile(color = "white") +  # Add white grid lines
     scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
                          midpoint = 0, limits = c(-0.79, 0.68)) +
@@ -2926,22 +2991,27 @@ ggplot(Predictors, aes(Gene_Combined, Sample_Combo2, fill= Estimate)) +
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
     labs(title = name_plot, y = "Suptype & Timepoint", x = "Gene", fill = "Estimate")+
-    scale_y_discrete(limits = rev(levels(Predictors$Sample_Combo2))) 
+    scale_y_discrete(limits = rev(levels(Predictors_End $Sample_Combo2))) 
 ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
        plot = last_plot(), width = 15, height = 4.5, dpi = 300)
 
 #### only plot the significant Genes: -----------------
 
+Predictors_End  <- merge(Predictors_End , Metadata_GeneID, by = "Gene")
+
+Predictors_End  <- Predictors_End  %>%
+    mutate(Gene_Combined2 = paste(GeneID2, Gene, sep = "_"))  # Combine GeneID and Gene
+
 # Filter rows where p-value is <= 0.5
-significant_genes <- Predictors %>% filter(Predictors$p.value <0.05)
+significant_genes <- Predictors_End  %>% filter(Predictors_End $p.value <0.05)
 significant_genes <- unique(significant_genes$Gene)
 
 # adjust data frame accordingly
-Predictors <- Predictors %>%
+Predictors_End  <- Predictors_End  %>%
     filter(Gene %in% significant_genes)
 
 name_plot <- "Correlation of acute (24 hours & 3-5 days PS) gene expr. with longterm NHISS (3 months PS) - only sig. Genes"
-ggplot(Predictors, aes(Gene_Combined, Sample_Combo2, fill= Estimate)) + 
+ggplot(Predictors_End , aes(Gene_Combined2, Sample_Combo2, fill= Estimate)) + 
     geom_tile(color = "white") +  # Add white grid lines
     scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
                          midpoint = 0, limits = c(-0.79, 0.68)) +
@@ -2950,7 +3020,7 @@ ggplot(Predictors, aes(Gene_Combined, Sample_Combo2, fill= Estimate)) +
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
     labs(title = name_plot, y = "Suptype & Timepoint", x = "Gene", fill = "Estimate")+
-    scale_y_discrete(limits = rev(levels(Predictors$Sample_Combo2))) 
+    scale_y_discrete(limits = rev(levels(Predictors_End $Sample_Combo2))) 
 ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
        plot = last_plot(), width = 9, height = 5, dpi = 300)
 
@@ -3267,52 +3337,11 @@ unique(sigGenes$Gene)
 
 # *Sig Regression - Gene Overview* --------------------------
 # with a mean for all Timepoints
-Gene_Overview_Age <- Age_correlation_capZ %>%
-    filter(p.value <= 0.05) %>% 
-    group_by(Subpopulation, Gene)%>%
-    summarise(Age_Correlation = mean(Estimate, na.rm = TRUE))
-
 Gene_Overview_NHISS <- LinReg_NHISS_capZ %>%
     filter(p.value <= 0.05) %>% 
     filter(Subgroup == "All") %>% 
     group_by(Subpopulation, Gene)%>%
     summarise(NHISS_Correlation = mean(Estimate, na.rm = TRUE))
-
-Gene_Overview_SPAN <- LinReg_SPAN_capZ %>%
-    filter(p.value <= 0.05) %>%  
-    filter(Subgroup == "All") %>%
-    group_by(Subpopulation, Gene)%>%
-    summarise(SPAN_Correlation = mean(Estimate, na.rm = TRUE))
-
-Gene_Overview_mRS <- LinReg_mRS_capZ %>%
-    filter(p.value <= 0.05) %>%  
-    filter(Subgroup == "All") %>%
-    group_by(Subpopulation, Gene)%>%
-    summarise(mRS_Correlation = mean(Estimate, na.rm = TRUE))
-
-Gene_Overview_Barthel <- LinReg_Barthel_capZ %>%
-    filter(p.value <= 0.05) %>%  
-    filter(Subgroup == "All") %>%
-    group_by(Subpopulation, Gene)%>%
-    summarise(Barthel_Correlation = mean(Estimate, na.rm = TRUE))
-
-Gene_Overview_MoCA <- LinReg_MoCA_capZ %>%
-    filter(p.value <= 0.05) %>%  
-    filter(Subgroup == "All") %>%
-    group_by(Subpopulation, Gene)%>%
-    summarise(MoCA_Correlation = mean(Estimate, na.rm = TRUE))
-
-Gene_Overview_HADS_Anxiety <- LinReg_HADS_Anxiety_capZ %>%
-    filter(p.value <= 0.05) %>%  
-    filter(Subgroup == "All") %>%
-    group_by(Subpopulation, Gene)%>%
-    summarise(HADS_Anxiety_Correlation = mean(Estimate, na.rm = TRUE))
-
-Gene_Overview_HADS_Depression <- LinReg_HADS_Depression_capZ %>%
-    filter(p.value <= 0.05) %>%  
-    filter(Subgroup == "All") %>%
-    group_by(Subpopulation, Gene)%>%
-    summarise(HADS_Depression_Correlation = mean(Estimate, na.rm = TRUE))
 
 Gene_Overview_NHISS_End <- LinReg_NHISS_End_capZ %>%
     filter(p.value <= 0.05) %>%  
@@ -3326,93 +3355,102 @@ Gene_Overview_NHISS_Diff <- LinReg_NHISS_Diff_capZ %>%
     group_by(Subpopulation, Gene)%>%
     summarise(NHISS_Diff_Correlation = mean(Estimate, na.rm = TRUE))
 
+Gene_Overview_NHISS_Ratio <- LinReg_NHISS_Ratio_capZ %>%
+    filter(p.value <= 0.05) %>%  
+    filter(Subgroup == "All") %>%
+    group_by(Subpopulation, Gene)%>%
+    summarise(NHISS_Ratio_Correlation = mean(Estimate, na.rm = TRUE))
+
+# Gene_Overview_Age <- Age_correlation_capZ %>%
+#     filter(p.value <= 0.05) %>% 
+#     group_by(Subpopulation, Gene)%>%
+#     summarise(Age_Correlation = mean(Estimate, na.rm = TRUE))
+# Gene_Overview_SPAN <- LinReg_SPAN_capZ %>%
+#     filter(p.value <= 0.05) %>%  
+#     filter(Subgroup == "All") %>%
+#     group_by(Subpopulation, Gene)%>%
+#     summarise(SPAN_Correlation = mean(Estimate, na.rm = TRUE))
+# 
+# Gene_Overview_mRS <- LinReg_mRS_capZ %>%
+#     filter(p.value <= 0.05) %>%  
+#     filter(Subgroup == "All") %>%
+#     group_by(Subpopulation, Gene)%>%
+#     summarise(mRS_Correlation = mean(Estimate, na.rm = TRUE))
+# 
+# Gene_Overview_Barthel <- LinReg_Barthel_capZ %>%
+#     filter(p.value <= 0.05) %>%  
+#     filter(Subgroup == "All") %>%
+#     group_by(Subpopulation, Gene)%>%
+#     summarise(Barthel_Correlation = mean(Estimate, na.rm = TRUE))
+# 
+# Gene_Overview_MoCA <- LinReg_MoCA_capZ %>%
+#     filter(p.value <= 0.05) %>%  
+#     filter(Subgroup == "All") %>%
+#     group_by(Subpopulation, Gene)%>%
+#     summarise(MoCA_Correlation = mean(Estimate, na.rm = TRUE))
+# 
+# Gene_Overview_HADS_Anxiety <- LinReg_HADS_Anxiety_capZ %>%
+#     filter(p.value <= 0.05) %>%  
+#     filter(Subgroup == "All") %>%
+#     group_by(Subpopulation, Gene)%>%
+#     summarise(HADS_Anxiety_Correlation = mean(Estimate, na.rm = TRUE))
+# 
+# Gene_Overview_HADS_Depression <- LinReg_HADS_Depression_capZ %>%
+#     filter(p.value <= 0.05) %>%  
+#     filter(Subgroup == "All") %>%
+#     group_by(Subpopulation, Gene)%>%
+#     summarise(HADS_Depression_Correlation = mean(Estimate, na.rm = TRUE))
+
 Gene_Overview_woTP <- merge(Gene_Overview_NHISS,
-                            Gene_Overview_mRS,
-                            by = c("Gene", "Subpopulation"), 
-                            all = TRUE)
-Gene_Overview_woTP <- merge(Gene_Overview_woTP,
-                            Gene_Overview_Barthel, 
-                            by = c("Gene", "Subpopulation"), 
-                            all = TRUE)
-Gene_Overview_woTP <- merge(Gene_Overview_woTP,
-                            Gene_Overview_MoCA, 
-                            by = c("Gene", "Subpopulation"), 
-                            all = TRUE)
-Gene_Overview_woTP <- merge(Gene_Overview_woTP,
-                            Gene_Overview_HADS_Anxiety, 
-                            by = c("Gene", "Subpopulation"), 
-                            all = TRUE)
-Gene_Overview_woTP <- merge(Gene_Overview_woTP,
-                            Gene_Overview_HADS_Depression, 
-                            by = c("Gene", "Subpopulation"), 
-                            all = TRUE)
-Gene_Overview_woTP <- merge(Gene_Overview_woTP,
-                            Gene_Overview_NHISS_End, 
+                            Gene_Overview_NHISS_End,
                             by = c("Gene", "Subpopulation"), 
                             all = TRUE)
 Gene_Overview_woTP <- merge(Gene_Overview_woTP,
                             Gene_Overview_NHISS_Diff, 
                             by = c("Gene", "Subpopulation"), 
                             all = TRUE)
-# Aging at the end!
 Gene_Overview_woTP <- merge(Gene_Overview_woTP,
-                            Gene_Overview_Age,
-                            by = c("Gene", "Subpopulation"), 
-                            all = TRUE)
-Gene_Overview_woTP <- merge(Gene_Overview_woTP,
-                            Gene_Overview_SPAN, 
+                            Gene_Overview_NHISS_Ratio, 
                             by = c("Gene", "Subpopulation"), 
                             all = TRUE)
 
+# Gene_Overview_woTP <- merge(Gene_Overview_woTP,
+#                             Gene_Overview_mRS, 
+#                             by = c("Gene", "Subpopulation"), 
+#                             all = TRUE)
+# Gene_Overview_woTP <- merge(Gene_Overview_woTP,
+#                             Gene_Overview_Barthel, 
+#                             by = c("Gene", "Subpopulation"), 
+#                             all = TRUE)
+# Gene_Overview_woTP <- merge(Gene_Overview_woTP,
+#                             Gene_Overview_MoCA, 
+#                             by = c("Gene", "Subpopulation"), 
+#                             all = TRUE)
+# Gene_Overview_woTP <- merge(Gene_Overview_woTP,
+#                             Gene_Overview_HADS_Anxiety, 
+#                             by = c("Gene", "Subpopulation"), 
+#                             all = TRUE)
+# Gene_Overview_woTP <- merge(Gene_Overview_woTP,
+#                             Gene_Overview_HADS_Depression, 
+#                             by = c("Gene", "Subpopulation"), 
+#                             all = TRUE)
+# # Aging at the end!
+# Gene_Overview_woTP <- merge(Gene_Overview_woTP,
+#                             Gene_Overview_Age,
+#                             by = c("Gene", "Subpopulation"), 
+#                             all = TRUE)
+# Gene_Overview_woTP <- merge(Gene_Overview_woTP,
+#                             Gene_Overview_SPAN, 
+#                             by = c("Gene", "Subpopulation"), 
+#                             all = TRUE)
+
 # table including the details for the timepoints
-Gene_Overview_Age <- Age_correlation_capZ %>%
-    filter(p.value <= 0.05) %>% 
-    group_by(Subpopulation, Gene, Timepoint) %>%
-    summarise(Age_Correlation = Estimate)
 
 Gene_Overview_NHISS <- LinReg_NHISS_capZ %>%
     filter(p.value <= 0.05) %>%  
     filter(Subgroup == "All") %>%
     group_by(Subpopulation, Gene, Timepoint) %>%
     summarise(NHISS_Correlation = Estimate)
-
-Gene_Overview_SPAN <- LinReg_SPAN_capZ %>%
-    filter(p.value <= 0.05) %>%  
-    filter(Subgroup == "All") %>%
-    group_by(Subpopulation, Gene, Timepoint) %>%
-    summarise(SPAN_Correlation = Estimate)
-
-Gene_Overview_mRS <- LinReg_mRS_capZ %>%
-    filter(p.value <= 0.05) %>%  
-    filter(Subgroup == "All") %>%
-    group_by(Subpopulation, Gene, Timepoint) %>%
-    summarise(mRS_Correlation = Estimate)
-
-Gene_Overview_mRS <- LinReg_mRS_capZ %>%
-    filter(p.value <= 0.05) %>%  
-    filter(Subgroup == "All") %>%
-    group_by(Subpopulation, Gene, Timepoint) %>%
-    summarise(mRS_Correlation = Estimate)
-Gene_Overview_Barthel <- LinReg_Barthel_capZ %>%
-    filter(p.value <= 0.05) %>%  
-    filter(Subgroup == "All") %>%
-    group_by(Subpopulation, Gene, Timepoint) %>%
-    summarise(Barthel_Correlation = Estimate)
-Gene_Overview_MoCA <- LinReg_MoCA_capZ %>%
-    filter(p.value <= 0.05) %>%  
-    filter(Subgroup == "All") %>%
-    group_by(Subpopulation, Gene, Timepoint) %>%
-    summarise(MoCA_Correlation = Estimate)
-Gene_Overview_HADS_Anxiety <- LinReg_HADS_Anxiety_capZ %>%
-    filter(p.value <= 0.05) %>%  
-    filter(Subgroup == "All") %>%
-    group_by(Subpopulation, Gene, Timepoint) %>%
-    summarise(HADS_Anxiety_Correlation = Estimate)
-Gene_Overview_HADS_Depression <- LinReg_HADS_Depression_capZ %>%
-    filter(p.value <= 0.05) %>%  
-    filter(Subgroup == "All") %>%
-    group_by(Subpopulation, Gene, Timepoint) %>%
-    summarise(HADS_Depression_Correlation = Estimate)
 Gene_Overview_NHISS_End <- LinReg_NHISS_End_capZ %>%
     filter(p.value <= 0.05) %>%  
     filter(Subgroup == "All") %>%
@@ -3423,28 +3461,50 @@ Gene_Overview_NHISS_Diff <- LinReg_NHISS_Diff_capZ %>%
     filter(Subgroup == "All") %>%
     group_by(Subpopulation, Gene, Timepoint) %>%
     summarise(NHISS_Diff_Correlation = Estimate)
+Gene_Overview_NHISS_Ratio <- LinReg_NHISS_Ratio_capZ %>%
+    filter(p.value <= 0.05) %>%  
+    filter(Subgroup == "All") %>%
+    group_by(Subpopulation, Gene, Timepoint) %>%
+    summarise(NHISS_Ratio_Correlation = Estimate)
+
+# Gene_Overview_Age <- Age_correlation_capZ %>%
+#     filter(p.value <= 0.05) %>% 
+#     group_by(Subpopulation, Gene, Timepoint) %>%
+#     summarise(Age_Correlation = Estimate)
+# Gene_Overview_SPAN <- LinReg_SPAN_capZ %>%
+#     filter(p.value <= 0.05) %>%  
+#     filter(Subgroup == "All") %>%
+#     group_by(Subpopulation, Gene, Timepoint) %>%
+#     summarise(SPAN_Correlation = Estimate)
+# 
+# Gene_Overview_mRS <- LinReg_mRS_capZ %>%
+#     filter(p.value <= 0.05) %>%  
+#     filter(Subgroup == "All") %>%
+#     group_by(Subpopulation, Gene, Timepoint) %>%
+#     summarise(mRS_Correlation = Estimate)
+# Gene_Overview_Barthel <- LinReg_Barthel_capZ %>%
+#     filter(p.value <= 0.05) %>%  
+#     filter(Subgroup == "All") %>%
+#     group_by(Subpopulation, Gene, Timepoint) %>%
+#     summarise(Barthel_Correlation = Estimate)
+# Gene_Overview_MoCA <- LinReg_MoCA_capZ %>%
+#     filter(p.value <= 0.05) %>%  
+#     filter(Subgroup == "All") %>%
+#     group_by(Subpopulation, Gene, Timepoint) %>%
+#     summarise(MoCA_Correlation = Estimate)
+# Gene_Overview_HADS_Anxiety <- LinReg_HADS_Anxiety_capZ %>%
+#     filter(p.value <= 0.05) %>%  
+#     filter(Subgroup == "All") %>%
+#     group_by(Subpopulation, Gene, Timepoint) %>%
+#     summarise(HADS_Anxiety_Correlation = Estimate)
+# Gene_Overview_HADS_Depression <- LinReg_HADS_Depression_capZ %>%
+#     filter(p.value <= 0.05) %>%  
+#     filter(Subgroup == "All") %>%
+#     group_by(Subpopulation, Gene, Timepoint) %>%
+#     summarise(HADS_Depression_Correlation = Estimate)
+
 
 Gene_Overview <- merge(Gene_Overview_NHISS,
-                       Gene_Overview_mRS, 
-                       by = c("Gene", "Subpopulation", "Timepoint"), 
-                       all = TRUE)
-Gene_Overview <- merge(Gene_Overview,
-                       Gene_Overview_Barthel, 
-                       by = c("Gene", "Subpopulation", "Timepoint"), 
-                       all = TRUE)
-Gene_Overview <- merge(Gene_Overview,
-                       Gene_Overview_MoCA, 
-                       by = c("Gene", "Subpopulation", "Timepoint"), 
-                       all = TRUE)
-Gene_Overview <- merge(Gene_Overview,
-                       Gene_Overview_HADS_Anxiety, 
-                       by = c("Gene", "Subpopulation", "Timepoint"), 
-                       all = TRUE)
-Gene_Overview <- merge(Gene_Overview,
-                       Gene_Overview_HADS_Depression, 
-                       by = c("Gene", "Subpopulation", "Timepoint"), 
-                       all = TRUE)
-Gene_Overview <- merge(Gene_Overview,
                        Gene_Overview_NHISS_End, 
                        by = c("Gene", "Subpopulation", "Timepoint"), 
                        all = TRUE)
@@ -3452,28 +3512,50 @@ Gene_Overview <- merge(Gene_Overview,
                        Gene_Overview_NHISS_Diff, 
                        by = c("Gene", "Subpopulation", "Timepoint"), 
                        all = TRUE)
-# put aging at the end
 Gene_Overview <- merge(Gene_Overview,
-                       Gene_Overview_Age, 
+                       Gene_Overview_NHISS_Ratio, 
                        by = c("Gene", "Subpopulation", "Timepoint"), 
                        all = TRUE)
-Gene_Overview <- merge(Gene_Overview,
-                       Gene_Overview_SPAN, 
-                       by = c("Gene", "Subpopulation", "Timepoint"), 
-                       all = TRUE)
+# Gene_Overview <- merge(Gene_Overview,
+#                        Gene_Overview_mRS, 
+#                        by = c("Gene", "Subpopulation", "Timepoint"), 
+#                        all = TRUE)
+# Gene_Overview <- merge(Gene_Overview,
+#                        Gene_Overview_Barthel, 
+#                        by = c("Gene", "Subpopulation", "Timepoint"), 
+#                        all = TRUE)
+# Gene_Overview <- merge(Gene_Overview,
+#                        Gene_Overview_MoCA, 
+#                        by = c("Gene", "Subpopulation", "Timepoint"), 
+#                        all = TRUE)
+# Gene_Overview <- merge(Gene_Overview,
+#                        Gene_Overview_HADS_Anxiety, 
+#                        by = c("Gene", "Subpopulation", "Timepoint"), 
+#                        all = TRUE)
+# Gene_Overview <- merge(Gene_Overview,
+#                        Gene_Overview_HADS_Depression, 
+#                        by = c("Gene", "Subpopulation", "Timepoint"), 
+#                        all = TRUE)
+# # put aging at the end
+# Gene_Overview <- merge(Gene_Overview,
+#                        Gene_Overview_Age, 
+#                        by = c("Gene", "Subpopulation", "Timepoint"), 
+#                        all = TRUE)
+# Gene_Overview <- merge(Gene_Overview,
+#                        Gene_Overview_SPAN, 
+#                        by = c("Gene", "Subpopulation", "Timepoint"), 
+#                        all = TRUE)
 
 # Replace the Estimated with the arrows!    
 Gene_Overview_woTP_arrows <- Gene_Overview_woTP %>%
-    mutate(across(c(Age_Correlation, NHISS_Correlation, SPAN_Correlation,
-                    mRS_Correlation, Barthel_Correlation, MoCA_Correlation,
-                    HADS_Anxiety_Correlation, HADS_Depression_Correlation, 
-                    NHISS_End_Correlation, NHISS_Diff_Correlation), 
+    mutate(across(c(NHISS_Correlation, NHISS_End_Correlation, NHISS_Diff_Correlation, NHISS_Ratio_Correlation, 
+                    #Age_Correlation, SPAN_Correlation, mRS_Correlation, Barthel_Correlation, MoCA_Correlation, HADS_Anxiety_Correlation, HADS_Depression_Correlation, 
+                    ), 
                   ~ ifelse(is.na(.), "-", ifelse(. > 0, "↑", "↓"))))
 Gene_Overview_arrows <- Gene_Overview %>%
-    mutate(across(c(Age_Correlation, NHISS_Correlation, SPAN_Correlation,
-                    mRS_Correlation, Barthel_Correlation, MoCA_Correlation,
-                    HADS_Anxiety_Correlation, HADS_Depression_Correlation, 
-                    NHISS_End_Correlation, NHISS_Diff_Correlation), 
+    mutate(across(c(NHISS_Correlation, NHISS_End_Correlation, NHISS_Diff_Correlation, NHISS_Ratio_Correlation, 
+                     #Age_Correlation, SPAN_Correlation, mRS_Correlation, Barthel_Correlation, MoCA_Correlation, HADS_Anxiety_Correlation, HADS_Depression_Correlation, 
+                    ), 
                   ~ ifelse(is.na(.), "-", ifelse(. > 0, "↑", "↓"))))
 
 # Save the files:
