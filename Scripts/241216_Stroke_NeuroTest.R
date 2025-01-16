@@ -243,10 +243,10 @@ plot_linear_regression <- function(data, cells_colname, group_name, output_folde
     }
 }
 
-plot_linear_regression_NHISS <- function(data, cells_colname, group_name, output_folder, result) {
+plot_linear_regression_NHISS <- function(data, cells_colname, group_name, output_folder, result, x_axis_var) {
     
     # Fit the initial linear model to identify outliers
-    lm_initial <- lm(data[[cells_colname]] ~ data$NHISS)
+    lm_initial <- lm(data[[cells_colname]] ~ data[[x_axis_var]])
     residuals_values <- residuals(lm_initial)
     outlier_indices <- which(abs(residuals_values) > (3 * sd(residuals_values)))
     
@@ -271,11 +271,11 @@ plot_linear_regression_NHISS <- function(data, cells_colname, group_name, output
     result <- rbind(result, rows_group)  # Update global variable
     
     # Plot regression for the specific group with all timepoints
-    p_group <- ggplot(data_filtered, aes(x = NHISS, y = .data[[cells_colname]], color = Timepoint)) +
+    p_group <- ggplot(data_filtered, aes_string(x = x_axis_var, y = cells_colname, color = "Timepoint")) +
         geom_point(size = 2) +
         geom_smooth(method = "lm", aes(color = Timepoint), se = FALSE, size = 1) +
-        ggtitle(paste("NHISS Linear Regression -", group_name, "(", cells_colname, ")", sep = " ")) +
-        xlab("NHISS") +
+        ggtitle(paste("Linear Regression -", group_name, "(", cells_colname, ")", sep = " ")) +
+        xlab(x_axis_var) +
         ylab(cells_colname) +
         theme(text = element_text(size = 14)) +
         theme(
@@ -302,7 +302,7 @@ plot_linear_regression_NHISS <- function(data, cells_colname, group_name, output
     }
     
     # Save the plot with all timepoints
-    ggsave(filename = file.path(output_folder, paste0("NHISS_LinReg_", group_name, "_", cells_colname, ".png")), plot = p_group)
+    ggsave(filename = file.path(output_folder, paste0("LinReg_", x_axis_var, "_", group_name, "_", cells_colname, ".png")), plot = p_group)
     
     # Create an additional plot with only significant timepoints if there are any
     significant_timepoints <- rows_group$Timepoint[rows_group$p.value <= 0.05]
@@ -310,11 +310,11 @@ plot_linear_regression_NHISS <- function(data, cells_colname, group_name, output
     if (length(significant_timepoints) > 0) {
         # Plot with all significant timepoints together
         p_significant <- ggplot(data_filtered %>% filter(Timepoint %in% significant_timepoints), 
-                                aes(x = NHISS, y = .data[[cells_colname]], color = Timepoint)) +
+                                aes_string(x = x_axis_var, y = cells_colname, color = "Timepoint")) +
             geom_point(size = 2) +
             geom_smooth(method = "lm", aes(color = Timepoint), se = TRUE, size = 1) +
-            ggtitle(paste("NHISS Linear Regression - Significant Only -", group_name, "(", cells_colname, ")", sep = " ")) +
-            xlab("NHISS") +
+            ggtitle(paste("Linear Regression - Significant Only -", group_name, "(", cells_colname, ")", sep = " ")) +
+            xlab(x_axis_var) +
             ylab(cells_colname) +
             theme(text = element_text(size = 14)) +
             theme(
@@ -329,35 +329,11 @@ plot_linear_regression_NHISS <- function(data, cells_colname, group_name, output
             scale_fill_manual(values = my_colors)
         
         # Save the plot with only significant timepoints together
-        ggsave(filename = file.path(output_folder, paste0("NHISS_LinReg_SignificantOnly_", group_name, "_", cells_colname, ".png")), plot = p_significant)
-        # 
-        # # Plot individual plots for each significant timepoint
-        # for (sig_timepoint in significant_timepoints) {
-        #     p_individual <- ggplot(data_filtered %>% filter(Timepoint == sig_timepoint), 
-        #                            aes(x = NHISS, y = .data[[cells_colname]], color = Timepoint)) +
-        #         geom_point(size = 2) +
-        #         geom_smooth(method = "lm", aes(color = Timepoint), se = TRUE, size = 1) +
-        #         ggtitle(paste("NHISS Linear Regression -", group_name, "(", cells_colname, ")", " - Timepoint:", sig_timepoint)) +
-        #         xlab("NHISS") +
-        #         ylab(cells_colname) +
-        #         theme(text = element_text(size = 14)) +
-        #         theme(
-        #             panel.background = element_rect(fill = "white", color = "black"),
-        #             plot.background = element_rect(fill = "white", color = "black"),
-        #             text = element_text(color = "black"),
-        #             panel.grid.major = element_line(color = "gray", size = 0.2),
-        #             panel.grid.minor = element_blank(),
-        #             panel.grid.major.x = element_blank()
-        #         ) +
-        #         scale_color_manual(values = my_colors[sig_timepoint]) +
-        #         scale_fill_manual(values = my_colors[sig_timepoint])
-        #     
-        #     # Save the individual plot
-        #     ggsave(filename = file.path(output_folder, paste0("NHISS_LinReg_SignificantOnly_", group_name, "_", cells_colname, "_Timepoint_", sig_timepoint, ".png")), plot = p_individual)
-        #  }
+        ggsave(filename = file.path(output_folder, paste0("LinReg_SignificantOnly_", x_axis_var, "_", group_name, "_", cells_colname, ".png")), plot = p_significant)
     }
     return(result)
 }
+
 
 # summary data.frame for dotplot
 calculate_summary <- function(data, combo_col, gene_col) {
@@ -512,7 +488,7 @@ automate_anova_extraction <- function(results_folder, plots_folder, results_name
         # Generate and save the plots if required
         if (plot_save == "y") {
             median_TP0 <- median(df_test[df_test[[timepoint_col]] == "TP0", var_name], na.rm = TRUE)
-            my_colors <- c("darkgreen", "orange", "red", "magenta", "purple")
+            my_colors <- c("darkgrey", "black", "black", "black", "black")
             
             # Boxplot generation
             box_plot <- ggboxplot(df_test, x = timepoint_col, y = var_name, color = timepoint_col, 
@@ -524,7 +500,8 @@ automate_anova_extraction <- function(results_folder, plots_folder, results_name
                                    method = "wilcox", 
                                    ref.group = "TP0", 
                                    hide.ns = TRUE, 
-                                   label.y = max(df_test[[var_name]])) +
+                                   label.y = max(df_test[[var_name]]),
+                                   size = 8) +
                 scale_x_discrete(labels = c(
                     "TP0" = "Control",
                     "TP1" = "24 hours",
@@ -551,7 +528,7 @@ automate_anova_extraction <- function(results_folder, plots_folder, results_name
             
             # Barplot with SEM and significance
             bar_plot <- ggbarplot(mean_values, x = "Timepoint", y = "mean_value", fill = "Timepoint",
-                                  ylab = paste(var_name, "mean value"), 
+                                  ylab = paste(var_name, "mean (+-SEM) percentage"), 
                                   add = "mean_se", width = 0.8) +
                 scale_fill_manual(values = my_colors) +
                 scale_x_discrete(labels = c(
@@ -564,7 +541,8 @@ automate_anova_extraction <- function(results_folder, plots_folder, results_name
                 geom_errorbar(aes(ymin = mean_value - SEM, ymax = mean_value + SEM), width = 0.2) +
                 stat_compare_means(data = df_test, aes(x = get(timepoint_col), y = get(var_name)),
                                    method = "wilcox", ref.group = "TP0", hide.ns = TRUE,
-                                   label = "p.signif", label.y = max(mean_values$mean_value) + 0.1 * max(mean_values$mean_value))
+                                   label = "p.signif", label.y = max(mean_values$mean_value) + 0.09 * max(mean_values$mean_value),
+                                   size = 8)
             
             # Save barplot
             barplot_file_name <- file.path(plots_folder, paste(var_name, "_Barplot_Wilcox_SEM.png", sep = ""))
@@ -576,6 +554,127 @@ automate_anova_extraction <- function(results_folder, plots_folder, results_name
     # Write the results to a CSV file
     results_file <- file.path(paste(results_name, "_Results.csv", sep = ""))
     write.csv(results, file = results_file, row.names = FALSE)
+    
+    # Return the results dataframe
+    return(results)
+}
+
+automate_anova_extraction_Category <- function(results_folder, plots_folder, results_name, plot_save, dataset, loop_vars, timepoint_col = "Timepoint", color_var) {
+    # Create directories if they don't exist
+    if (!dir.exists(results_folder)) dir.create(results_folder)
+    if (!dir.exists(plots_folder)) dir.create(plots_folder)
+    
+    # Initialize an empty dataframe to store results
+    results <- data.frame(Category = character(), Variable = character(), P_Value = numeric(),
+                          TP1_P_Value = numeric(), TP2_P_Value = numeric(), 
+                          TP3_P_Value = numeric(), TP4_P_Value = numeric())
+    
+    # Loop through the specified variables (columns) in the dataset
+    for (var_name in loop_vars) {
+        # Subset the dataset for the variable and timepoints
+        df_test <- dataset[, c(var_name, timepoint_col, color_var)]
+        df_test <- df_test %>% filter(!is.na(get(var_name)), !is.na(get(timepoint_col)), !is.na(get(color_var)))
+        
+        # Ensure Timepoint is treated as a factor
+        df_test[[timepoint_col]] <- factor(df_test[[timepoint_col]], levels = c("TP0", "TP1", "TP2", "TP3", "TP4"))
+        
+        # Check if we have sufficient data
+        if (length(unique(df_test[[timepoint_col]])) < 2 || nrow(df_test) < 3) next
+        
+        for (color_vari in unique(df_test[[color_var]])) {
+            df_color <- df_test %>% filter(get(color_var) == color_vari)
+            tp_p_values <- sapply(c("TP1", "TP2", "TP3", "TP4"), function(tp) {
+                if (tp %in% df_color[[timepoint_col]]) {
+                    tryCatch(
+                        wilcox.test(df_color[[var_name]][df_color[[timepoint_col]] == tp], 
+                                    df_color[[var_name]][df_color[[timepoint_col]] == "TP0"])$p.value,
+                        error = function(e) NA
+                    )
+                } else {
+                    NA
+                }
+            })
+            
+            results <- rbind(results, data.frame(Category = color_vari, Variable = var_name, 
+                                                 P_Value = min(tp_p_values, na.rm = TRUE),
+                                                 TP1_P_Value = tp_p_values["TP1"], 
+                                                 TP2_P_Value = tp_p_values["TP2"],
+                                                 TP3_P_Value = tp_p_values["TP3"], 
+                                                 TP4_P_Value = tp_p_values["TP4"]))
+        }
+        
+        # Generate plots if required
+        if (plot_save == "y") {
+            median_TP0 <- median(df_test[df_test[[timepoint_col]] == "TP0", var_name], na.rm = TRUE)
+            my_colors <- c("Female" = "#1D04C2","Male" = "#A67C00", 
+                            "MINOR" = "#A67C00","MODERATE" = "#700606",
+                           "Bad" = "#700606","Good" = "#A67C00")
+            
+            # Filter my_colors to match the levels of color_var in df_test
+            used_colors <- my_colors[unique(df_test[[color_var]])]
+            
+            # Boxplot with Correct Legend
+            box_plot <- ggboxplot(df_test, x = timepoint_col, y = var_name, color = color_var, 
+                                  add = "jitter", legend = "right", ylab = paste(var_name, "percentage")) +
+                geom_hline(yintercept = median_TP0, linetype = 2) +
+                scale_x_discrete(labels = c("TP0" = "Control", "TP1" = "24 hours", 
+                                            "TP2" = "3-5 days", "TP3" = "1 month", 
+                                            "TP4" = "3 months")) +
+                scale_color_manual(values = used_colors, 
+                                   name = "Group",
+                                   labels = names(used_colors))
+            
+            
+            # Annotate significant comparisons for each category
+            for (color in unique(df_test[[color_var]])) {
+                df_color <- results[results$Category == color & results$Variable == var_name, ]
+                y_base <- max(df_test[[var_name]], na.rm = TRUE) + 0.1
+                y_step <- 0.15
+                for (tp in c("TP1", "TP2", "TP3", "TP4")) {
+                    p_value <- df_color[[paste(tp, "P_Value", sep = "_")]]
+                    if (!is.na(p_value) && p_value <= 0.05) {
+                        asterisk <- ifelse(p_value <= 0.001, "***",
+                                           ifelse(p_value <= 0.01, "**", "*"))
+                        x_position <- which(levels(df_test[[timepoint_col]]) == tp)
+                        box_plot <- box_plot +
+                            annotate("text", x = x_position, y = y_base, 
+                                     label = asterisk, size = 5, color = my_colors[color]) #+
+                        #annotate("segment", x = x_position - 0.15, xend = x_position + 0.15, 
+                        #         y = y_base - 0.02, yend = y_base - 0.02, color = my_colors[color])
+                        y_base <- y_base + y_step
+                    }
+                }
+            }
+            
+            ggsave(filename = file.path(plots_folder, paste(var_name, "_Boxplot_Wilcox.png", sep = "")), plot = box_plot)
+            
+            # # Barplot with SEM
+            # mean_values <- df_test %>%
+            #     group_by(get(timepoint_col), get(color_var)) %>%
+            #     summarise(mean_value = mean(get(var_name), na.rm = TRUE),
+            #               sd_value = sd(get(var_name), na.rm = TRUE),
+            #               n = n(), .groups = "drop") %>%
+            #     mutate(SEM = sd_value / sqrt(n)) %>%
+            #     rename(Timepoint = `get(timepoint_col)`, Group = `get(color_var)`)
+            # 
+            # dodge_position <- position_dodge(width = 0.8)
+            # bar_plot <- ggbarplot(mean_values, x = "Timepoint", y = "mean_value", fill = "Group", 
+            #                       ylab = paste(var_name, "mean (+-SEM) percentage"), 
+            #                       add = "mean_se", width = 0.6, position = dodge_position) +
+            #     scale_fill_manual(values = my_colors) +
+            #     scale_x_discrete(labels = c("TP0" = "Control", "TP1" = "24 hours", 
+            #                                 "TP2" = "3-5 days", "TP3" = "1 month", 
+            #                                 "TP4" = "3 months")) +
+            #     geom_errorbar(aes(ymin = mean_value - SEM, ymax = mean_value + SEM), 
+            #                   width = 0.2, position = dodge_position) +
+            #     theme_minimal()
+            # 
+            # ggsave(filename = file.path(plots_folder, paste(var_name, "_Barplot_Wilcox_SEM.png", sep = "")), plot = bar_plot)
+        }
+    }
+    
+    # Save results to a CSV file
+    write.csv(results, file.path(results_folder, paste(results_name, "_results.csv", sep = "")), row.names = FALSE)
     
     # Return the results dataframe
     return(results)
@@ -1476,8 +1575,29 @@ ANOVA_FACSdata <- FACSdata %>% filter(!(Timepoint == "TP0" & SampleID %in% Unmat
 
 # with wilcox
 ANOVA_FACSall <- automate_anova_extraction(output_location, "Wilcox_FACS_Plots", 
-                                                  "Wilcox_FACS", "y", ANOVA_FACSdata, colnames(ANOVA_FACSdata)[9:12], 
-                                                  "Timepoint")
+                                           "Wilcox_FACS", "y", ANOVA_FACSdata, 
+                                           colnames(ANOVA_FACSdata)[9:12], 
+                                           "Timepoint")
+
+ANOVA_FACSdata <- ANOVA_FACSdata[order(ANOVA_FACSdata$Sex == "Female", decreasing = TRUE), ]
+ANOVA_FACSsex <- automate_anova_extraction_Category(output_location, "Wilcox_FACS_Plots_Sex", 
+                                            "Wilcox_FACS_Sex", "y", ANOVA_FACSdata, 
+                                            colnames(ANOVA_FACSdata)[9:12], 
+                                            c(colnames(ANOVA_FACSdata)[2]),c(colnames(ANOVA_FACSdata)[22]))
+
+ANOVA_FACSdata <- ANOVA_FACSdata[order(ANOVA_FACSdata$Category == "MODERATE", decreasing = FALSE), ]
+ANOVA_FACScategory <- automate_anova_extraction_Category(output_location, "Wilcox_FACS_Plots_Category", 
+                                                    "Wilcox_FACS_Category", "y", ANOVA_FACSdata, 
+                                                    colnames(ANOVA_FACSdata)[9:12], 
+                                                    c(colnames(ANOVA_FACSdata)[2]),c(colnames(ANOVA_FACSdata)[24]))
+
+ANOVA_FACSdata <- ANOVA_FACSdata[order(ANOVA_FACSdata$Recovery == "Bad", decreasing = TRUE), ]
+ANOVA_FACSrecovery <- automate_anova_extraction_Category(output_location, "Wilcox_FACS_Plots_Recovery", 
+                                                    "Wilcox_FACS_Recovery", "y", ANOVA_FACSdata, 
+                                                    colnames(ANOVA_FACSdata)[9:12], 
+                                                    c(colnames(ANOVA_FACSdata)[2]),c(colnames(ANOVA_FACSdata)[25]))
+
+
 # paired t.test
 # FACSdata_matched <- FACSdata %>%
 #     filter(!SampleID %in% Unmatched_TP0_FACS)
@@ -1808,16 +1928,14 @@ NHISS_correlation_FACS <- data.frame(Cells = character(), Timepoint = character(
                                    Max_NHISS = numeric(), Min_NHISS = numeric())
 # remove Patient40 as I do not have NHISS and Sex from them
 #FACSdata <- FACSdata[!is.na(FACSdata$NHISS), ]
+FACSdata_copy <- FACSdata 
 
 # Main loop for each column
 for (i in 9:12) {
     cells_colname <- colnames(FACSdata)[i]
     
-    # remove Patient40 as I do not have NHISS and Sex from them
-    FACSdata_col <- FACSdata[!is.na(FACSdata$NHISS), ]
-    
     # All samples
-    NHISS_correlation_FACS <- plot_linear_regression_NHISS(FACSdata_col, cells_colname, "All", output_folder, NHISS_correlation_FACS)
+    NHISS_correlation_FACS <- plot_linear_regression_NHISS(FACSdata, cells_colname, "All", output_folder, NHISS_correlation_FACS, "NHISS")
     
     # # Male samples
     # FACSdata_male <- FACSdata[FACSdata$Sex == "Male", ]
@@ -1901,53 +2019,21 @@ NHISS_End_correlation_FACS <- data.frame(Cells = character(), Timepoint = charac
                                      p.value = numeric(), Coefficient = numeric(), Down95 = numeric(), 
                                      Up95 = numeric(), Intercept = numeric(), Fold = numeric(), 
                                      Max_NHISS_End = numeric(), Min_NHISS_End = numeric())
-# remove Patient40 as I do not have NHISS_End and Sex from them
-FACSdata <- FACSdata[!is.na(FACSdata$NHISS_End), ]
-
 # Main loop for each column
 for (i in 9:12) {
     cells_colname <- colnames(FACSdata)[i]
+    # Remove rows with NA in NHISS_End
+    FACSdata <- FACSdata[!is.na(FACSdata$NHISS_End), ]
     
     # All samples
-    plot_linear_regression_NHISS(FACSdata, cells_colname, "All", output_folder, NHISS_End_correlation_FACS)
-    
-    # # Male samples
-    # FACSdata_male <- FACSdata[FACSdata$Sex == "Male", ]
-    # if (nrow(FACSdata_male) > 0) {
-    #     plot_linear_regression_NHISS(FACSdata_male, cells_colname, "Male", output_folder, NHISS_End_correlation_FACS)
-    # }
-    # 
-    # # Female samples
-    # FACSdata_female <- FACSdata[FACSdata$Sex == "Female", ]
-    # if (nrow(FACSdata_female) > 0) {
-    #     plot_linear_regression_NHISS(FACSdata_female, cells_colname, "Female", output_folder, NHISS_End_correlation_FACS)
-    # }
-    # 
-    # # Minor category
-    # FACSdata_Minor <- FACSdata[FACSdata$Category == "MINOR", ]
-    # if (nrow(FACSdata_Minor) > 0) {
-    #     plot_linear_regression_NHISS(FACSdata_Minor, cells_colname, "Minor", output_folder, NHISS_End_correlation_FACS)
-    # }
-    # 
-    # # Moderate category
-    # FACSdata_Moderate <- FACSdata[FACSdata$Category == "MODERATE", ]
-    # if (nrow(FACSdata_Moderate) > 0) {
-    #     plot_linear_regression_NHISS(FACSdata_Moderate, cells_colname, "Moderate", output_folder, NHISS_End_correlation_FACS)
-    # }
-    # 
-    # # Good recovery
-    # FACSdata_Good <- FACSdata[FACSdata$Recovery == "Good", ]
-    # FACSdata_Good <- FACSdata_Good[!is.na(FACSdata_Good$Age), ]
-    # if (nrow(FACSdata_Good) > 0) {
-    #     plot_linear_regression_NHISS(FACSdata_Good, cells_colname, "Good", output_folder, NHISS_End_correlation_FACS)
-    # }
-    # 
-    # # Bad recovery
-    # FACSdata_Bad <- FACSdata[FACSdata$Recovery == "Bad", ]
-    # FACSdata_Bad <- FACSdata_Bad[!is.na(FACSdata_Bad$Age), ]
-    # if (nrow(FACSdata_Bad) > 0) {
-    #     plot_linear_regression_NHISS(FACSdata_Bad, cells_colname, "Bad", output_folder, NHISS_End_correlation_FACS)
-    # }
+    NHISS_End_correlation_FACS <- plot_linear_regression_NHISS(
+        FACSdata,
+        cells_colname,
+        "All",
+        output_folder,
+        NHISS_End_correlation_FACS,
+        "NHISS_End" # Pass NHISS_End as a string
+    )
 }
 
 # Save results to CSV
@@ -1956,7 +2042,111 @@ write.csv(NHISS_End_correlation_FACS, "NHISS_End_correlation_FACS.csv", row.name
 sigNHISS_End_correlation_FACS <- NHISS_End_correlation_FACS %>% filter(NHISS_End_correlation_FACS$p.value <0.05)
 write.csv(sigNHISS_End_correlation_FACS, "sigNHISS_End_correlation_FACS.csv", row.names = FALSE)
 
+#### NHISS_Diff linear regression -----------------
+output_folder <- "LinReg_FACS_Plots_NHISS_Diff"
+if (!dir.exists(output_folder)) {
+    dir.create(output_folder, recursive = TRUE)
+}
+# Correlation with "final" NHISS
+# Initialize NHISS_Diff with NA
+FACSdata$NHISS_Diff <- NA
 
+# Calculate the difference for each SampleID
+FACSdata <- FACSdata %>%
+    group_by(SampleID) %>%
+    mutate(
+        NHISS_Diff = if (all(c("TP1", "TP4") %in% Timepoint)) {
+            NHISS[Timepoint == "TP1"] - NHISS[Timepoint == "TP4"]
+        } else {
+            NA
+        }
+    ) %>%
+    ungroup()
+
+FACSdata_copy <- FACSdata
+
+NHISS_Diff_correlation_FACS <- data.frame(Cells = character(), Timepoint = character(), Sex = character(), N = numeric(), 
+                                         p.value = numeric(), Coefficient = numeric(), Down95 = numeric(), 
+                                         Up95 = numeric(), Intercept = numeric(), Fold = numeric(), 
+                                         Max_NHISS_Diff = numeric(), Min_NHISS_Diff = numeric())
+
+# Main loop for each column
+for (i in 9:12) {
+    cells_colname <- colnames(FACSdata)[i]
+    # Remove rows with NA in NHISS_End
+    FACSdata <- FACSdata[!is.na(FACSdata$NHISS_Diff), ]
+    
+    # All samples
+    NHISS_Diff_correlation_FACS <- plot_linear_regression_NHISS(
+        FACSdata,
+        cells_colname,
+        "All",
+        output_folder,
+        NHISS_End_correlation_FACS,
+        "NHISS_Diff" # Pass NHISS_End as a string
+    )
+}
+
+# Save results to CSV
+write.csv(NHISS_Diff_correlation_FACS, "NHISS_Diff_correlation_FACS.csv", row.names = FALSE)
+
+sigNHISS_Diff_correlation_FACS <- NHISS_Diff_correlation_FACS %>% filter(NHISS_Diff_correlation_FACS$p.value <0.05)
+write.csv(sigNHISS_Diff_correlation_FACS, "sigNHISS_Diff_correlation_FACS.csv", row.names = FALSE)
+
+#### NHISS_Ratio linear regression -----------------
+output_folder <- "LinReg_FACS_Plots_NHISS_Ratio"
+if (!dir.exists(output_folder)) {
+    dir.create(output_folder, recursive = TRUE)
+}
+# Correlation with "final" NHISS
+# Initialize NHISS_Ratio with NA
+FACSdata$NHISS_Ratio <- NA
+
+# Calculate the difference for each SampleID
+FACSdata <- FACSdata %>%
+    group_by(SampleID) %>%
+    mutate(
+        NHISS_Ratio = if (all(c("TP1", "TP4") %in% Timepoint)) {
+            (NHISS[Timepoint == "TP1"] - NHISS[Timepoint == "TP4"])/NHISS[Timepoint == "TP1"]
+        } else {
+            NA
+        }
+    ) %>%
+    ungroup()
+
+FACSdata_copy <- FACSdata
+
+NHISS_Ratio_correlation_FACS <- data.frame(Cells = character(), Timepoint = character(), Sex = character(), N = numeric(), 
+                                          p.value = numeric(), Coefficient = numeric(), Down95 = numeric(), 
+                                          Up95 = numeric(), Intercept = numeric(), Fold = numeric(), 
+                                          Max_NHISS_Ratio = numeric(), Min_NHISS_Ratio = numeric())
+
+# Main loop for each column
+for (i in 9:12) {
+    cells_colname <- colnames(FACSdata)[i]
+    # Remove rows with NA in NHISS_End
+    FACSdata <- FACSdata[!is.na(FACSdata$NHISS_Ratio), ]
+    
+    # All samples
+    NHISS_Ratio_correlation_FACS <- plot_linear_regression_NHISS(
+        FACSdata,
+        cells_colname,
+        "All",
+        output_folder,
+        NHISS_End_correlation_FACS,
+        "NHISS_Ratio" # Pass NHISS_End as a string
+    )
+}
+
+
+# Save results to CSV
+write.csv(NHISS_Ratio_correlation_FACS, "NHISS_Ratio_correlation_FACS.csv", row.names = FALSE)
+
+sigNHISS_Ratio_correlation_FACS <- NHISS_Ratio_correlation_FACS %>% filter(NHISS_Ratio_correlation_FACS$p.value <0.05)
+write.csv(sigNHISS_Ratio_correlation_FACS, "sigNHISS_Ratio_correlation_FACS.csv", row.names = FALSE)
+
+# restore original dataframe, as its randomly deleting things....
+FACSdata <- FACSdata_copy
 
 # *Gene Expr. Statistics* ----------------------------------------------------------------------------------------------------
 # As they are non-normal disributed, dependent with similar variance
@@ -2030,6 +2220,7 @@ for (j in 1:length(unique(data_mean_matched$Gene))) {
         
         if (plot_save == "y") {
             #my_colors <- c("darkgreen", "orange", "red", "magenta", "purple") 
+            plot_name <- paste(gene, " expression of ", sup, " Monocytes (Control vs post-stroke", sep = "")
             
             # Create a boxplot with significance levels
             p <- ggboxplot(df, 
@@ -2039,10 +2230,17 @@ for (j in 1:length(unique(data_mean_matched$Gene))) {
                            add = "jitter", 
                            legend = "none", 
                            ylab = paste(gene, "expression (Z-scored from CT - CT Sample Median)"), 
+                           title = plot_name,
                            width = 0.8, 
                            add.params = list(size = 1, alpha = 0.5)) +  
                 geom_hline(yintercept = median_TP0, linetype = 2) +
-                scale_color_manual(values = TP_colors)
+                scale_color_manual(values = TP_colors) +
+                 scale_x_discrete(labels = c(
+            "TP0" = "Control",
+            "TP1" = "24 hours",
+            "TP2" = "3-5 days",
+            "TP3" = "1 month",
+            "TP4" = "3 months"))
             
             # Add significance levels based on Wilcoxon tests
             for (tp in seq_along(timepoints)) {
@@ -2075,7 +2273,7 @@ results$TP4_Significance <- sapply(results$TP4_P_Value, get_significance)
 Wilcox_capZ <- results
 write.csv(Wilcox_capZ, file = "Wilcox_Results_capZ_unpaired.csv", row.names = FALSE)
 
-#### Wilcox test for Z of Genes --------------------------------------------------
+#### Wilcox test for Z of Genes -SubtypesCombined --------------------------------------------------
 folder <- "Wilcox_capZ_Plots_SubtypesCombined_unpaired"
 results <- data.frame(Gene = character(), Subpopulation = character(), P_Value = numeric(),
                       TP1_P_Value = numeric(), TP2_P_Value = numeric(), TP3_P_Value = numeric(), TP4_P_Value = numeric())
@@ -2211,7 +2409,7 @@ for (j in 1:length(unique(data_mean_matched$Gene))) {
 
 
 #*Wilcox for Comparison at individual TPs -------------------------------------
-
+plot_save <- "y"
 #### Male vs Female Analysis (Mean ± SEM) -------------------------------------
 folder <- "Mean_SEM_capZ_Sex_Plots"
 createFolder(folder)  # Ensure the folder exists
@@ -2388,7 +2586,7 @@ write.csv(Timecourse_Wilcox_Category_Z , file = "Timecourse_Wilcox_Category_Z_Re
 
 #### Good vs Bad Recovery (Mean ± SEM)* -------------------------------------
 folder <- "Mean_SEM_capZ_Recovery_Plots"
-plot_save <- "n"
+plot_save <- "y"
 createFolder(folder)  # Ensure the folder exists
 results <- data.frame(Recovery = character(), Gene = character(), Subpopulation = character(), 
                       P_Value = numeric(), TP1_P_Value = numeric(), TP2_P_Value = numeric(), 
@@ -2985,7 +3183,7 @@ ggplot(Predictors_End , aes(Gene_Combined, Sample_Combo2, fill= Estimate)) +
               hjust = 0.5, vjust = 0.5) +  # Center the text in the squares
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-    labs(title = name_plot, y = "Suptype & Timepoint", x = "Gene", fill = "Estimate")+
+    labs(title = name_plot, y = "Timepoint & Suptype", x = "Gene", fill = "Estimate")+
     scale_y_discrete(limits = rev(levels(Predictors_End $Sample_Combo2))) 
 ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
        plot = last_plot(), width = 15, height = 4.5, dpi = 300)
@@ -3014,7 +3212,7 @@ ggplot(Predictors_End , aes(Gene_Combined2, Sample_Combo2, fill= Estimate)) +
               hjust = 0.5, vjust = 0.5) +  # Center the text in the squares
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-    labs(title = name_plot, y = "Suptype & Timepoint", x = "Gene", fill = "Estimate")+
+    labs(title = name_plot, y = "Timepoint & Suptype", x = "Gene", fill = "Estimate")+
     scale_y_discrete(limits = rev(levels(Predictors_End $Sample_Combo2))) 
 ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
        plot = last_plot(), width = 9, height = 5, dpi = 300)
@@ -3049,7 +3247,7 @@ ggplot(Predictors_Diff , aes(Gene_Combined, Sample_Combo2, fill= Estimate)) +
               hjust = 0.5, vjust = 0.5) +  # Center the text in the squares
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-    labs(title = name_plot, y = "Suptype & Timepoint", x = "Gene", fill = "Estimate")+
+    labs(title = name_plot, y = "Timepoint & Suptype", x = "Gene", fill = "Estimate")+
     scale_y_discrete(limits = rev(levels(Predictors_Diff $Sample_Combo2))) 
 ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
        plot = last_plot(), width = 15, height = 4.5, dpi = 300)
@@ -3078,10 +3276,10 @@ ggplot(Predictors_Diff , aes(Gene_Combined2, Sample_Combo2, fill= Estimate)) +
               hjust = 0.5, vjust = 0.5) +  # Center the text in the squares
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-    labs(title = name_plot, y = "Suptype & Timepoint", x = "Gene", fill = "Estimate")+
+    labs(title = name_plot, y = "Timepoint & Suptype", x = "Gene", fill = "Estimate")+
     scale_y_discrete(limits = rev(levels(Predictors_Diff $Sample_Combo2))) 
 ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
-       plot = last_plot(), width = 9, height = 5, dpi = 300)
+       plot = last_plot(), width = 5, height = 5, dpi = 300)
 
 #### NHISS_Ratio (Estimate) -----------------------
 Predictors_Ratio <- LinReg_NHISS_Ratio_capZ 
@@ -3113,7 +3311,7 @@ ggplot(Predictors_Ratio , aes(Gene_Combined, Sample_Combo2, fill= Estimate)) +
               hjust = 0.5, vjust = 0.5) +  # Center the text in the squares
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-    labs(title = name_plot, y = "Suptype & Timepoint", x = "Gene", fill = "Estimate")+
+    labs(title = name_plot, y = "Timepoint & Suptype", x = "Gene", fill = "Estimate")+
     scale_y_discrete(limits = rev(levels(Predictors_Ratio $Sample_Combo2))) 
 ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
        plot = last_plot(), width = 15, height = 4.5, dpi = 300)
@@ -3142,10 +3340,210 @@ ggplot(Predictors_Ratio , aes(Gene_Combined2, Sample_Combo2, fill= Estimate)) +
               hjust = 0.5, vjust = 0.5) +  # Center the text in the squares
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-    labs(title = name_plot, y = "Suptype & Timepoint", x = "Gene", fill = "Estimate")+
+    labs(title = name_plot, y = "Timepoint & Suptype", x = "Gene", fill = "Estimate")+
     scale_y_discrete(limits = rev(levels(Predictors_Ratio $Sample_Combo2))) 
 ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
        plot = last_plot(), width = 9, height = 5, dpi = 300)
+
+#### NHISS_Ratio - TP1/TP2 sig. Genes: -----------------
+Predictors_Ratio_TP1  <- Predictors_Ratio %>% filter(Timepoint ==  "24 hours")
+Predictors_Ratio_TP2  <- Predictors_Ratio %>% filter(Timepoint ==  "3-5 days")
+# Filter rows where p-value is <= 0.5
+significant_genes_TP1 <- Predictors_Ratio_TP1  %>% filter(Predictors_Ratio_TP1$p.value <0.05)
+significant_genes_TP1 <- unique(significant_genes_TP1$Gene)
+significant_genes_TP2 <- Predictors_Ratio_TP2  %>% filter(Predictors_Ratio_TP2$p.value <0.05)
+significant_genes_TP2 <- unique(significant_genes_TP2$Gene)
+
+# adjust data frame accordingly
+Predictors_Ratio_TP1 <- Predictors_Ratio_TP1 %>% filter(Gene %in% significant_genes_TP1)
+Predictors_Ratio_TP2 <- Predictors_Ratio_TP2 %>% filter(Gene %in% significant_genes_TP2)
+
+#### Heatmap - TP1 sig. Genes
+name_plot <- "Correlation of acute (24 hours) gene expr. with relative change in NHISS (24h vs 3 months PS) - only sig. Genes"
+ggplot(Predictors_Ratio_TP1, aes(Gene_Combined2, Sample_Combo2, fill= Estimate)) + 
+    geom_tile(color = "white") +  # Add white grid lines
+    scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                         midpoint = 0, limits = c(-0.65, 0.71)) +
+    geom_text(aes(label = Significance), color = "white", size = 10, 
+              hjust = 0.5, vjust = 0.5) +  # Center the text in the squares
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    labs(title = name_plot, y = "Suptype", x = "Gene", fill = "Estimate")+
+    scale_y_discrete(limits = rev(levels(Predictors_Ratio_TP1$Sample_Combo2))) 
+ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
+       plot = last_plot(), width = 6, height = 5, dpi = 300)
+
+#### Heatmap - TP2 sig. Genes
+name_plot <- "Correlation of sub-acute (3-5 days) gene expr. with relative change in NHISS (24h vs 3 months PS) - only sig. Genes"
+ggplot(Predictors_Ratio_TP2, aes(Gene_Combined2, Sample_Combo2, fill= Estimate)) + 
+    geom_tile(color = "white") +  # Add white grid lines
+    scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                         midpoint = 0, limits = c(-0.68, 0.8)) +
+    geom_text(aes(label = Significance), color = "white", size = 10, 
+              hjust = 0.5, vjust = 0.5) +  # Center the text in the squares
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    labs(title = name_plot, y = "Suptype", x = "Gene", fill = "Estimate")+
+    scale_y_discrete(limits = rev(levels(Predictors_Ratio_TP2$Sample_Combo2))) 
+ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
+       plot = last_plot(), width = 6, height = 5, dpi = 300)
+#### NHISS (Estimate) ---------------
+LinReg_NHISS_capZ <- LinReg_NHISS_capZ %>%
+    mutate(Timepoint = factor(Timepoint, levels = sort(unique(Timepoint))))
+
+LinReg_NHISS_capZ <- LinReg_NHISS_capZ %>%
+    mutate(Gene_Ordered = paste(GeneID, Gene, sep = "_"))
+LinReg_NHISS_capZ <- LinReg_NHISS_capZ %>%
+    mutate(Groups = paste(Subpopulation, Timepoint, sep = "_"))
+
+# Estimate: - 0.99 to 0.92
+name_plot <- paste("Heatmap of NHISS Correlation Estimates")
+# Add significance levels
+LinReg_NHISS_capZ$Significance <- ifelse(LinReg_NHISS_capZ$p.value < 0.001, "***",
+                                         ifelse(LinReg_NHISS_capZ$p.value < 0.01, "**",
+                                                ifelse(LinReg_NHISS_capZ$p.value < 0.05, "*", "")))
+# Create the heatmap with significance levels
+ggplot(LinReg_NHISS_capZ, aes(x = Gene_Ordered, y = Groups, fill = Estimate)) + 
+    geom_tile() +
+    scale_fill_gradient2(low = "blue", mid = "white", high = "purple", 
+                         midpoint = 0, limits = c(-0.72, 0.78)) +
+    geom_text(aes(label = Significance), color = "black", size = 3) + # Add significance levels with white text
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    labs(title = name_plot, x = "Gene", y = "Timepoint & Subpopulation", fill = "Estimate")
+ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
+       plot = last_plot(), width = 10, height = 5, dpi = 300)
+
+name_plot <- paste(name_plot," (transposed)")
+ggplot(LinReg_NHISS_capZ, aes(Groups, Gene_Ordered, fill= Estimate)) + 
+    geom_tile() +
+    scale_fill_gradient2(low = "yellow", mid = "white", high = "purple", 
+                         midpoint = 0, limits = c(-0.72, 0.78)) +
+    geom_text(aes(label = Significance), color = "black", size = 3) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    labs(title = name_plot, x = "Timepoint & Subpopulation", y = "Timepoint", fill = "Estimate")
+ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
+       plot = last_plot(), width = 5, height = 10, dpi = 300)
+
+#### NHISS Split by Subpopulation (Estimate) ---------------
+for (sup in unique(LinReg_NHISS_capZ$Subpopulation)) {
+    df <- filter(LinReg_NHISS_capZ, Subpopulation == sup)
+    sigGenes <- filter(LinReg_NHISS_capZ, p.value <= 0.05) 
+    sigGenes <- unique(sigGenes$Gene)
+    df <- df %>%  filter(Gene %in% sigGenes)
+    df <- df %>%  filter(!Gene %in% c("ACTB", "B2M", "GAPDH"))
+    
+    name_plot <- paste("Heatmap of NHISS Correlation Estimates - ", sup, " Monocytes") 
+    ggplot(df, aes(Gene_Ordered, Timepoint, fill= Estimate)) + 
+        geom_tile() +
+        scale_fill_gradient2(low = "yellow", mid = "white", high = "purple", 
+                             midpoint = 0, limits = c(-0.72, 0.78)) +
+        geom_text(aes(label = Significance), color = "black", size = 6) +
+        theme_minimal() +
+        theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+        labs(title = name_plot, x = "Gene", y = "Timepoint", fill = "Coefficient")+
+        scale_y_discrete(labels = timepoint_labels)+# Apply custom y-axis labels
+        scale_x_discrete(labels = function(x) str_sub(x, start = 4)) + # Remove first three characters
+        theme(
+            axis.text.x = element_text(angle = 90, hjust = 1, size = 14), # Adjust font size
+            axis.text.y = element_text(size = 14),                        # Adjust font size
+            axis.title.x = element_text(size = 16),
+            axis.title.y = element_text(size = 16),
+            plot.title = element_text(size = 18, face = "bold")
+        )
+    ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
+           plot = last_plot(), width = 10, height = 5, dpi = 300)
+}
+for (sup in unique(LinReg_NHISS_capZ$Subpopulation)) {
+    df <- filter(LinReg_NHISS_capZ, Subpopulation == sup)
+    # sigGenes <- filter(LinReg_NHISS_capZ, p.value <= 0.05) if you want to compare all of them
+    sigGenes <- filter(df, p.value <= 0.05)
+    sigGenes <- unique(sigGenes$Gene)
+    df <- df %>%  filter(Gene %in% sigGenes)
+    df <- df %>%  filter(!Gene %in% c("ACTB", "B2M", "GAPDH"))
+    
+    name_plot <- paste("Heatmap of NHISS Correlation Estimates - ", sup, " Monocytes (only sigGenes)") 
+    ggplot(df, aes(Gene_Ordered, Timepoint, fill= Estimate)) + 
+        geom_tile() +
+        scale_fill_gradient2(low = "yellow", mid = "white", high = "purple", 
+                             midpoint = 0, limits = c(-0.72, 0.78)) +
+        geom_text(aes(label = Significance), color = "black", size = 6) +
+        theme_minimal() +
+        theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+        labs(title = name_plot, x = "Gene", y = "Timepoint", fill = "Coefficient")+
+        scale_y_discrete(labels = timepoint_labels)+# Apply custom y-axis labels
+        scale_x_discrete(labels = function(x) str_sub(x, start = 4)) + # Remove first three characters
+        theme(
+            axis.text.x = element_text(angle = 90, hjust = 1, size = 14), # Adjust font size
+            axis.text.y = element_text(size = 14),                        # Adjust font size
+            axis.title.x = element_text(size = 16),
+            axis.title.y = element_text(size = 16),
+            plot.title = element_text(size = 18, face = "bold")
+        )
+    ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
+           plot = last_plot(), width = 10, height = 5, dpi = 300)
+}
+
+#### NHISS Split by Timepoint (Estimate) ---------------
+for (tp in unique(LinReg_NHISS_capZ$Timepoint)) {
+    df <- filter(LinReg_NHISS_capZ, Timepoint == tp)
+    sigGenes <- filter(LinReg_NHISS_capZ, p.value <= 0.05) 
+    sigGenes <- unique(sigGenes$Gene)
+    df <- df %>%  filter(Gene %in% sigGenes)
+    df <- df %>%  filter(!Gene %in% c("ACTB", "B2M", "GAPDH"))
+    
+    name_plot <- paste("Heatmap of NHISS Correlation Estimates - ", tp) 
+    ggplot(df, aes(Gene_Ordered, Subpopulation, fill= Estimate)) + 
+        geom_tile() +
+        scale_fill_gradient2(low = "yellow", mid = "white", high = "purple", 
+                             midpoint = 0, limits = c(-0.72, 0.78)) +
+        geom_text(aes(label = Significance), color = "black", size = 6) +
+        theme_minimal() +
+        theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+        labs(title = name_plot, x = "Gene", y = "Monocyte Suptype", fill = "Coefficient")+
+        scale_x_discrete(labels = function(x) str_sub(x, start = 4)) + # Remove first three characters
+        theme(
+            axis.text.x = element_text(angle = 90, hjust = 1, size = 14), # Adjust font size
+            axis.text.y = element_text(size = 14),                        # Adjust font size
+            axis.title.x = element_text(size = 16),
+            axis.title.y = element_text(size = 16),
+            plot.title = element_text(size = 18, face = "bold")
+        )
+    ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
+           plot = last_plot(), width = 10, height = 5, dpi = 300)
+}
+for (tp in unique(LinReg_NHISS_capZ$Timepoint)) {
+    df <- filter(LinReg_NHISS_capZ, Timepoint == tp)
+    # sigGenes <- filter(LinReg_NHISS_capZ, p.value <= 0.05) if you want to compare all of them
+    sigGenes <- filter(df, p.value <= 0.05)
+    sigGenes <- unique(sigGenes$Gene)
+    df <- df %>%  filter(Gene %in% sigGenes)
+    df <- df %>%  filter(!Gene %in% c("ACTB", "B2M", "GAPDH"))
+    
+    name_plot <- paste("Heatmap of NHISS Correlation Estimates - ", tp, " (only sigGenes)") 
+    ggplot(df, aes(Gene_Ordered, Subpopulation, fill= Estimate)) + 
+        geom_tile() +
+        scale_fill_gradient2(low = "yellow", mid = "white", high = "purple", 
+                             midpoint = 0, limits = c(-0.72, 0.78)) +
+        geom_text(aes(label = Significance), color = "black", size = 6) +
+        theme_minimal() +
+        theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+        labs(title = name_plot, x = "Gene", y = "Monocyte Suptype", fill = "Coefficient")+
+        scale_x_discrete(labels = function(x) str_sub(x, start = 4)) + # Remove first three characters
+        theme(
+            axis.text.x = element_text(angle = 90, hjust = 1, size = 14), # Adjust font size
+            axis.text.y = element_text(size = 14),                        # Adjust font size
+            axis.title.x = element_text(size = 16),
+            axis.title.y = element_text(size = 16),
+            plot.title = element_text(size = 18, face = "bold")
+        )
+    ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
+           plot = last_plot(), width = 10, height = 5, dpi = 300)
+}
+
+sigGenes <- filter(LinReg_NHISS_capZ, p.value <= 0.05) 
+unique(sigGenes$Gene)
 
 #### Aging (Estimate) ---------------
 Age_correlation_capZ <- Age_correlation_capZ %>%
@@ -3181,41 +3579,6 @@ ggplot(Age_correlation_capZ, aes(Groups, Gene_Ordered, fill= Estimate)) +
 ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
        plot = last_plot(), width = 5, height = 10, dpi = 300)
 
-#### NHISS (Estimate) ---------------
-LinReg_NHISS_capZ <- LinReg_NHISS_capZ %>%
-    mutate(Gene_Ordered = paste(GeneID, Gene, sep = "_"))
-LinReg_NHISS_capZ <- LinReg_NHISS_capZ %>%
-    mutate(Groups = paste(Subpopulation, Timepoint, sep = "_"))
-
-# Estimate: - 0.99 to 0.92
-name_plot <- paste("Heatmap of NHISS Correlation Estimates")
-# Add significance levels
-LinReg_NHISS_capZ$Significance <- ifelse(LinReg_NHISS_capZ$p.value < 0.001, "***",
-                                              ifelse(LinReg_NHISS_capZ$p.value < 0.01, "**",
-                                                     ifelse(LinReg_NHISS_capZ$p.value < 0.05, "*", "")))
-# Create the heatmap with significance levels
-ggplot(LinReg_NHISS_capZ, aes(x = Gene_Ordered, y = Groups, fill = Estimate)) + 
-    geom_tile() +
-    scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
-                         midpoint = 0, limits = c(-0.99, 0.92)) +
-    geom_text(aes(label = Significance), color = "black", size = 3) + # Add significance levels with white text
-    theme_minimal() +
-    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-    labs(title = name_plot, x = "Gene", y = "Timepoint & Subpopulation", fill = "Estimate")
-ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
-       plot = last_plot(), width = 10, height = 5, dpi = 300)
-
-name_plot <- paste(name_plot," (transposed)")
-ggplot(LinReg_NHISS_capZ, aes(Groups, Gene_Ordered, fill= Estimate)) + 
-    geom_tile() +
-    scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
-                         midpoint = 0, limits = c(-0.99, 0.92)) +
-    geom_text(aes(label = Significance), color = "black", size = 3) +
-    theme_minimal() +
-    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-    labs(title = name_plot, x = "Timepoint & Subpopulation", y = "Timepoint", fill = "Estimate")
-ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
-       plot = last_plot(), width = 5, height = 10, dpi = 300)
 
 #### Aging  Split by Subpopulation (Estimate) ---------------
 for (sup in unique(Age_correlation_capZ$Subpopulation)) {
@@ -3256,65 +3619,6 @@ for (sup in unique(Age_correlation_capZ$Subpopulation)) {
     df <- df %>%  filter(!Gene %in% c("ACTB", "B2M", "GAPDH"))
     
     name_plot <- paste("Heatmap of Aging Correlation Estimates - ", sup, " Monocytes (only sigGenes)") 
-    ggplot(df, aes(Gene_Ordered, Timepoint, fill= Estimate)) + 
-        geom_tile() +
-        scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
-                             midpoint = 0) +
-        geom_text(aes(label = Significance), color = "black", size = 6) +
-        theme_minimal() +
-        theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-        labs(title = name_plot, x = "Gene", y = "Timepoint", fill = "Coefficient")+
-        scale_y_discrete(labels = timepoint_labels)+# Apply custom y-axis labels
-        scale_x_discrete(labels = function(x) str_sub(x, start = 4)) + # Remove first three characters
-        theme(
-            axis.text.x = element_text(angle = 90, hjust = 1, size = 14), # Adjust font size
-            axis.text.y = element_text(size = 14),                        # Adjust font size
-            axis.title.x = element_text(size = 16),
-            axis.title.y = element_text(size = 16),
-            plot.title = element_text(size = 18, face = "bold")
-        )
-    ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
-           plot = last_plot(), width = 10, height = 5, dpi = 300)
-}
-
-#### NHISS Split by Subpopulation (Estimate) ---------------
-for (sup in unique(LinReg_NHISS_capZ$Subpopulation)) {
-    df <- filter(LinReg_NHISS_capZ, Subpopulation == sup)
-    sigGenes <- filter(LinReg_NHISS_capZ, p.value <= 0.05) 
-    sigGenes <- unique(sigGenes$Gene)
-    df <- df %>%  filter(Gene %in% sigGenes)
-    df <- df %>%  filter(!Gene %in% c("ACTB", "B2M", "GAPDH"))
-    
-    name_plot <- paste("Heatmap of NHISS Correlation Estimates - ", sup, " Monocytes") 
-    ggplot(df, aes(Gene_Ordered, Timepoint, fill= Estimate)) + 
-        geom_tile() +
-        scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
-                             midpoint = 0) +
-        geom_text(aes(label = Significance), color = "black", size = 6) +
-        theme_minimal() +
-        theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-        labs(title = name_plot, x = "Gene", y = "Timepoint", fill = "Coefficient")+
-        scale_y_discrete(labels = timepoint_labels)+# Apply custom y-axis labels
-        scale_x_discrete(labels = function(x) str_sub(x, start = 4)) + # Remove first three characters
-        theme(
-            axis.text.x = element_text(angle = 90, hjust = 1, size = 14), # Adjust font size
-            axis.text.y = element_text(size = 14),                        # Adjust font size
-            axis.title.x = element_text(size = 16),
-            axis.title.y = element_text(size = 16),
-            plot.title = element_text(size = 18, face = "bold")
-        )
-    ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
-           plot = last_plot(), width = 10, height = 5, dpi = 300)
-}
-for (sup in unique(LinReg_NHISS_capZ$Subpopulation)) {
-    df <- filter(LinReg_NHISS_capZ, Subpopulation == sup)
-    # sigGenes <- filter(LinReg_NHISS_capZ, p.value <= 0.05) if you want to compare all of them
-    sigGenes <- filter(df, p.value <= 0.05)
-    sigGenes <- unique(sigGenes$Gene)
-    df <- df %>%  filter(Gene %in% sigGenes)
-    df <- df %>%  filter(!Gene %in% c("ACTB", "B2M", "GAPDH"))
-    
-    name_plot <- paste("Heatmap of NHISS Correlation Estimates - ", sup, " Monocytes (only sigGenes)") 
     ggplot(df, aes(Gene_Ordered, Timepoint, fill= Estimate)) + 
         geom_tile() +
         scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
@@ -3394,67 +3698,7 @@ for (tp in unique(Age_correlation_capZ$Timepoint)) {
            plot = last_plot(), width = 10, height = 5, dpi = 300)
 }
 
-#### NHISS Split by Timepoint (Estimate) ---------------
-for (tp in unique(LinReg_NHISS_capZ$Timepoint)) {
-    df <- filter(LinReg_NHISS_capZ, Timepoint == tp)
-    sigGenes <- filter(LinReg_NHISS_capZ, p.value <= 0.05) 
-    sigGenes <- unique(sigGenes$Gene)
-    df <- df %>%  filter(Gene %in% sigGenes)
-    df <- df %>%  filter(!Gene %in% c("ACTB", "B2M", "GAPDH"))
-    
-    name_plot <- paste("Heatmap of NHISS Correlation Estimates - ", tp) 
-    ggplot(df, aes(Gene_Ordered, Subpopulation, fill= Estimate)) + 
-        geom_tile() +
-        scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
-                             midpoint = 0) +
-        geom_text(aes(label = Significance), color = "black", size = 6) +
-        theme_minimal() +
-        theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-        labs(title = name_plot, x = "Gene", y = "Monocyte Suptype", fill = "Coefficient")+
-        scale_x_discrete(labels = function(x) str_sub(x, start = 4)) + # Remove first three characters
-        theme(
-            axis.text.x = element_text(angle = 90, hjust = 1, size = 14), # Adjust font size
-            axis.text.y = element_text(size = 14),                        # Adjust font size
-            axis.title.x = element_text(size = 16),
-            axis.title.y = element_text(size = 16),
-            plot.title = element_text(size = 18, face = "bold")
-        )
-    ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
-           plot = last_plot(), width = 10, height = 5, dpi = 300)
-}
-for (tp in unique(LinReg_NHISS_capZ$Timepoint)) {
-    df <- filter(LinReg_NHISS_capZ, Timepoint == tp)
-    # sigGenes <- filter(LinReg_NHISS_capZ, p.value <= 0.05) if you want to compare all of them
-    sigGenes <- filter(df, p.value <= 0.05)
-    sigGenes <- unique(sigGenes$Gene)
-    df <- df %>%  filter(Gene %in% sigGenes)
-    df <- df %>%  filter(!Gene %in% c("ACTB", "B2M", "GAPDH"))
-    
-    name_plot <- paste("Heatmap of NHISS Correlation Estimates - ", tp, " (only sigGenes)") 
-    ggplot(df, aes(Gene_Ordered, Subpopulation, fill= Estimate)) + 
-        geom_tile() +
-        scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
-                             midpoint = 0) +
-        geom_text(aes(label = Significance), color = "black", size = 6) +
-        theme_minimal() +
-        theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-        labs(title = name_plot, x = "Gene", y = "Monocyte Suptype", fill = "Coefficient")+
-        scale_x_discrete(labels = function(x) str_sub(x, start = 4)) + # Remove first three characters
-        theme(
-            axis.text.x = element_text(angle = 90, hjust = 1, size = 14), # Adjust font size
-            axis.text.y = element_text(size = 14),                        # Adjust font size
-            axis.title.x = element_text(size = 16),
-            axis.title.y = element_text(size = 16),
-            plot.title = element_text(size = 18, face = "bold")
-        )
-    ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
-           plot = last_plot(), width = 10, height = 5, dpi = 300)
-}
-
 sigGenes <- filter(Age_correlation_capZ, p.value <= 0.05) 
-unique(sigGenes$Gene)
-
-sigGenes <- filter(LinReg_NHISS_capZ, p.value <= 0.05) 
 unique(sigGenes$Gene)
 
 # *Sig Regression - Gene Overview* --------------------------
