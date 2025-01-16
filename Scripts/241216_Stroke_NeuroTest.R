@@ -184,10 +184,32 @@ plot_linear_regression <- function(data, cells_colname, group_name, output_folde
                                              alpha = 0.25,
                                              color = NA)
         }
+        # Save the plot with all timepoints
+        ggsave(filename = file.path(output_folder, paste0("LinReg_", group_name, "_", cells_colname, ".png")), plot = p_group)
+        
+        p_individual <- ggplot(data_filtered %>% filter(Timepoint == timepoint), 
+                               aes(x = Age, y = .data[[cells_colname]], color = Timepoint)) +
+            geom_point(size = 2) +
+            geom_smooth(method = "lm", aes(color = Timepoint), se = TRUE, size = 1) +
+            ggtitle(paste("Linear Regression -", group_name, "(", cells_colname, ")", " - Timepoint:", timepoint)) +
+            xlab("Age") +
+            ylab(cells_colname) +
+            theme(text = element_text(size = 14)) +
+            theme(
+                panel.background = element_rect(fill = "white", color = "black"),
+                plot.background = element_rect(fill = "white", color = "black"),
+                text = element_text(color = "black"),
+                panel.grid.major = element_line(color = "gray", size = 0.2),
+                panel.grid.minor = element_blank(),
+                panel.grid.major.x = element_blank()
+            ) +
+            scale_color_manual(values = my_colors[timepoint]) +
+            scale_fill_manual(values = my_colors[timepoint])
+        
+        # Save the individual plot
+        ggsave(filename = file.path(output_folder, paste0("LinReg_", group_name, "_", cells_colname, "_Timepoint_", timepoint, ".png")), plot = p_individual)
+        
     }
-    
-    # Save the plot with all timepoints
-    ggsave(filename = file.path(output_folder, paste0("LinReg_", group_name, "_", cells_colname, ".png")), plot = p_group)
     
     # Create an additional plot with only significant timepoints if there are any
     significant_timepoints <- rows_group$Timepoint[rows_group$p.value <= 0.05]
@@ -1854,7 +1876,10 @@ if (!dir.exists(output_folder)) {
 }
 
 # Define custom colors for the Timepoints
-my_colors <- c("TP0" = "darkgreen", "TP1" = "orange", "TP2" = "red", "TP3" = "magenta", "TP4" = "purple")
+#my_colors <- c("TP0" = "darkgreen", "TP1" = "orange", "TP2" = "red", "TP3" = "magenta", "TP4" = "purple")
+my_colors <- c("Female" = "#1D04C2", "Male" = "#A67C00", 
+               "MINOR" = "#A67C00", "MODERATE" = "#700606",
+               "Bad" = "#700606", "Good" = "#A67C00")
 
 # Initialize data frames to store results
 Age_correlation_FACS <- data.frame(Cells = character(), Timepoint = character(), Sex = character(), N = numeric(), 
