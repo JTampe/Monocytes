@@ -1730,8 +1730,8 @@ Gradient_colour <- setNames(
 # Run the function to plot PCA, mapping Age levels to colors
 plot_my_pca(pca_result, data.meta, "Age", Gradient_colour[data.meta$Age])
 
-
 # *FACS Statistics* ----------------
+FACSdata_copy <- FACSdata 
 #### 1WAY ANOVA* ----------------------------------------------------------------------------------------------------
 
 ANOVA_FACSdata <- FACSdata %>% filter(!(Timepoint == "TP0" & SampleID %in% Unmatched_TP0_FACS))
@@ -2091,7 +2091,6 @@ NHISS_correlation_FACS <- data.frame(Cells = character(), Timepoint = character(
                                    Max_NHISS = numeric(), Min_NHISS = numeric())
 # remove Patient40 as I do not have NHISS and Sex from them
 #FACSdata <- FACSdata[!is.na(FACSdata$NHISS), ]
-FACSdata_copy <- FACSdata 
 
 # Main loop for each column
 for (i in 9:12) {
@@ -2177,6 +2176,7 @@ for (tp in timepoints_to_adjust) {
 
 # Ensure TP4 values are copied correctly
 FACSdata$NHISS_End[TP4_indices] <- TP4_values
+FACSdata_copy <- FACSdata
 
 NHISS_End_correlation_FACS <- data.frame(Cells = character(), Timepoint = character(), Sex = character(), N = numeric(), 
                                      p.value = numeric(), Coefficient = numeric(), Down95 = numeric(), 
@@ -2210,7 +2210,9 @@ output_folder <- "LinReg_FACS_Plots_NHISS_Diff"
 if (!dir.exists(output_folder)) {
     dir.create(output_folder, recursive = TRUE)
 }
-# Correlation with "final" NHISS
+
+FACSdata <- FACSdata_copy
+
 # Initialize NHISS_Diff with NA
 FACSdata$NHISS_Diff <- NA
 
@@ -2261,7 +2263,8 @@ output_folder <- "LinReg_FACS_Plots_NHISS_Ratio"
 if (!dir.exists(output_folder)) {
     dir.create(output_folder, recursive = TRUE)
 }
-# Correlation with "final" NHISS
+
+FACSdata <- FACSdata_copy
 # Initialize NHISS_Ratio with NA
 FACSdata$NHISS_Ratio <- NA
 
