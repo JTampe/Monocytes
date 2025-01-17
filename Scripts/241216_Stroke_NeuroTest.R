@@ -128,6 +128,145 @@ calculate_linreg_by_timepoint <- function(data, cells_colname) {
     return(final_results)
 }
 # Function to plot linear regression for a specific group
+plot_linear_regression1 <- function(data, cells_colname, group_name, output_folder) {
+    
+    # Fit the initial linear model to identify outliers
+    lm_initial <- lm(data[[cells_colname]] ~ data$Age)
+    residuals_values <- residuals(lm_initial)
+    outlier_indices <- which(abs(residuals_values) > (3 * sd(residuals_values)))
+    
+    # Filter out the outliers
+    data_filtered <- data[-outlier_indices, ]
+    
+    # Check if there are enough data points to fit the model
+    if (nrow(data_filtered) < 2) {
+        warning(paste("Not enough data points after outlier removal for", group_name, "(", cells_colname, "). Skipping plot."))
+        return(NULL)
+    }
+    
+    # Calculate linear regression results
+    rows_group <- calculate_linreg_by_timepoint(data_filtered, cells_colname)
+    if (is.null(rows_group) || nrow(rows_group) == 0) {
+        warning(paste("No results for", group_name, "(", cells_colname, "). Skipping plot."))
+        return(NULL)
+    }
+    
+    rows_group$Focus <- group_name  # Add the group label
+    
+    Age_correlation_FACS <<- rbind(Age_correlation_FACS, rows_group)  # Update global variable
+    
+    # Plot regression for the specific group with all timepoints
+    p_group <- ggplot(data_filtered, aes(x = Age, y = .data[[cells_colname]], color = Timepoint)) +
+        geom_point(size = 2) +
+        geom_smooth(method = "lm", aes(color = Timepoint), se = FALSE, size = 1) +
+        ggtitle(paste("Linear Regression -", group_name, "(", cells_colname, ")", sep = " ")) +
+        xlab("Age") +
+        ylab(cells_colname) +
+        theme(text = element_text(size = 14)) +
+        theme(
+            panel.background = element_rect(fill = "white", color = "black"),
+            plot.background = element_rect(fill = "white", color = "black"),
+            text = element_text(color = "black"),
+            panel.grid.major = element_line(color = "gray", size = 0.2),
+            panel.grid.minor = element_blank(),
+            panel.grid.major.x = element_blank()
+        ) +
+        scale_color_manual(values = my_colors) +
+        scale_fill_manual(values = my_colors)
+    
+    # Add confidence interval only if p-value is <= 0.05
+    for (timepoint in unique(data_filtered$Timepoint)) {
+        if (rows_group$p.value[rows_group$Timepoint == timepoint] <= 0.05) {
+            p_group <- p_group + geom_smooth(data = subset(data_filtered, Timepoint == timepoint),
+                                             method = "lm",
+                                             aes(fill = Timepoint),
+                                             se = TRUE,
+                                             alpha = 0.25,
+                                             color = NA)
+        }
+        # Save the plot with all timepoints
+        ggsave(filename = file.path(output_folder, paste0("LinReg_", group_name, "_", cells_colname, ".png")), plot = p_group)
+        
+        p_individual <- ggplot(data_filtered %>% filter(Timepoint == timepoint), 
+                               aes(x = Age, y = .data[[cells_colname]], color = Timepoint)) +
+            geom_point(size = 2) +
+            geom_smooth(method = "lm", aes(color = Timepoint), se = TRUE, size = 1) +
+            ggtitle(paste("Linear Regression -", group_name, "(", cells_colname, ")", " - Timepoint:", timepoint)) +
+            xlab("Age") +
+            ylab(cells_colname) +
+            theme(text = element_text(size = 14)) +
+            theme(
+                panel.background = element_rect(fill = "white", color = "black"),
+                plot.background = element_rect(fill = "white", color = "black"),
+                text = element_text(color = "black"),
+                panel.grid.major = element_line(color = "gray", size = 0.2),
+                panel.grid.minor = element_blank(),
+                panel.grid.major.x = element_blank()
+            ) +
+            scale_color_manual(values = my_colors[timepoint]) +
+            scale_fill_manual(values = my_colors[timepoint])
+        
+        # Save the individual plot
+        ggsave(filename = file.path(output_folder, paste0("LinReg_", group_name, "_", cells_colname, "_Timepoint_", timepoint, ".png")), plot = p_individual,
+               width = 7, height = 6)
+        
+    }
+    
+    # Create an additional plot with only significant timepoints if there are any
+    significant_timepoints <- rows_group$Timepoint[rows_group$p.value <= 0.05]
+    
+    if (length(significant_timepoints) > 0) {
+        # Plot with all significant timepoints together
+        p_significant <- ggplot(data_filtered %>% filter(Timepoint %in% significant_timepoints), 
+                                aes(x = Age, y = .data[[cells_colname]], color = Timepoint)) +
+            geom_point(size = 2) +
+            geom_smooth(method = "lm", aes(color = Timepoint), se = TRUE, size = 1) +
+            ggtitle(paste("Linear Regression - Significant Only -", group_name, "(", cells_colname, ")", sep = " ")) +
+            xlab("Age") +
+            ylab(cells_colname) +
+            theme(text = element_text(size = 14)) +
+            theme(
+                panel.background = element_rect(fill = "white", color = "black"),
+                plot.background = element_rect(fill = "white", color = "black"),
+                text = element_text(color = "black"),
+                panel.grid.major = element_line(color = "gray", size = 0.2),
+                panel.grid.minor = element_blank(),
+                panel.grid.major.x = element_blank()
+            ) +
+            scale_color_manual(values = my_colors) +
+            scale_fill_manual(values = my_colors)
+        
+        # Save the plot with only significant timepoints together
+        ggsave(filename = file.path(output_folder, paste0("LinReg_SignificantOnly_", group_name, "_", cells_colname, ".png")), plot = p_significant)
+        
+        # Plot individual plots for each significant timepoint
+        for (sig_timepoint in significant_timepoints) {
+            p_individual <- ggplot(data_filtered %>% filter(Timepoint == sig_timepoint), 
+                                   aes(x = Age, y = .data[[cells_colname]], color = Timepoint)) +
+                geom_point(size = 2) +
+                geom_smooth(method = "lm", aes(color = Timepoint), se = TRUE, size = 1) +
+                ggtitle(paste("Linear Regression -", group_name, "(", cells_colname, ")", " - Timepoint:", sig_timepoint)) +
+                xlab("Age") +
+                ylab(cells_colname) +
+                theme(text = element_text(size = 14)) +
+                theme(
+                    panel.background = element_rect(fill = "white", color = "black"),
+                    plot.background = element_rect(fill = "white", color = "black"),
+                    text = element_text(color = "black"),
+                    panel.grid.major = element_line(color = "gray", size = 0.2),
+                    panel.grid.minor = element_blank(),
+                    panel.grid.major.x = element_blank()
+                ) +
+                scale_color_manual(values = my_colors[sig_timepoint]) +
+                scale_fill_manual(values = my_colors[sig_timepoint])
+            
+            # Save the individual plot
+            ggsave(filename = file.path(output_folder, paste0("LinReg_SignificantOnly_", group_name, "_", cells_colname, "_Timepoint_", sig_timepoint, ".png")), plot = p_individual)
+        }
+    }
+}
+
+# Function to plot linear regression for a specific group
 plot_linear_regression <- function(data, cells_colname, group_name, output_folder) {
     
     # Fit the initial linear model to identify outliers
@@ -207,7 +346,8 @@ plot_linear_regression <- function(data, cells_colname, group_name, output_folde
             scale_fill_manual(values = my_colors[timepoint])
         
         # Save the individual plot
-        ggsave(filename = file.path(output_folder, paste0("LinReg_", group_name, "_", cells_colname, "_Timepoint_", timepoint, ".png")), plot = p_individual)
+        ggsave(filename = file.path(output_folder, paste0("LinReg_", group_name, "_", cells_colname, "_Timepoint_", timepoint, ".png")), plot = p_individual,
+               width = 8, height = 5)
         
     }
     
@@ -264,6 +404,7 @@ plot_linear_regression <- function(data, cells_colname, group_name, output_folde
         }
     }
 }
+
 
 plot_linear_regression_NHISS <- function(data, cells_colname, group_name, output_folder, result, x_axis_var) {
     
@@ -1891,7 +2032,7 @@ for (i in 9:12) {
     cells_colname <- colnames(FACSdata)[i]
     
     # All samples
-    plot_linear_regression(FACSdata, cells_colname, "All", output_folder)
+    plot_linear_regression1(FACSdata, cells_colname, "All", output_folder)
     
     # Male samples
     FACSdata_male <- FACSdata[FACSdata$Sex == "Male", ]
