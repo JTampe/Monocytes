@@ -1876,10 +1876,7 @@ if (!dir.exists(output_folder)) {
 }
 
 # Define custom colors for the Timepoints
-#my_colors <- c("TP0" = "darkgreen", "TP1" = "orange", "TP2" = "red", "TP3" = "magenta", "TP4" = "purple")
-my_colors <- c("Female" = "#1D04C2", "Male" = "#A67C00", 
-               "MINOR" = "#A67C00", "MODERATE" = "#700606",
-               "Bad" = "#700606", "Good" = "#A67C00")
+my_colors <- c("TP0" = "darkgreen", "TP1" = "orange", "TP2" = "red", "TP3" = "magenta", "TP4" = "purple")
 
 # Initialize data frames to store results
 Age_correlation_FACS <- data.frame(Cells = character(), Timepoint = character(), Sex = character(), N = numeric(), 
