@@ -638,7 +638,7 @@ automate_anova_extraction_Category <- function(results_folder, plots_folder, res
             # Boxplot with Correct Legend
             box_plot <- ggboxplot(df_test, x = timepoint_col, y = var_name, color = color_var, 
                                   add = "jitter", legend = "right", ylab = paste(var_name, "percentage")) +
-                geom_hline(yintercept = median_TP0, linetype = 2) +
+               # geom_hline(yintercept = median_TP0, linetype = 2) +
                 scale_x_discrete(labels = c("TP0" = "Control", "TP1" = "24 hours", 
                                             "TP2" = "3-5 days", "TP3" = "1 month", 
                                             "TP4" = "3 months")) +
@@ -660,7 +660,7 @@ automate_anova_extraction_Category <- function(results_folder, plots_folder, res
                         x_position <- which(levels(df_test[[timepoint_col]]) == tp)
                         box_plot <- box_plot +
                             annotate("text", x = x_position, y = y_base, 
-                                     label = asterisk, size = 5, color = my_colors[color]) #+
+                                     label = asterisk, size = 12, color = my_colors[color]) #+
                         #annotate("segment", x = x_position - 0.15, xend = x_position + 0.15, 
                         #         y = y_base - 0.02, yend = y_base - 0.02, color = my_colors[color])
                         y_base <- y_base + y_step
