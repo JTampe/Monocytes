@@ -809,7 +809,8 @@ automate_anova_extraction_Category <- function(results_folder, plots_folder, res
                 }
             }
             
-            ggsave(filename = file.path(plots_folder, paste(var_name, "_Boxplot_Wilcox.png", sep = "")), plot = box_plot)
+            ggsave(filename = file.path(plots_folder, paste(var_name, "_Boxplot_Wilcox.png", sep = "")), 
+                   plot = box_plot, width = 7.435, height = 5)
             
             # # Barplot with SEM
             # mean_values <- df_test %>%
@@ -1570,6 +1571,7 @@ getwd()
 write_xlsx(fails, "Fail_rates.xlsx")
 write_xlsx(dataFINAL, "dataFINAL.xlsx")
 write_xlsx(dataFINALmean, "dataFINALmean.xlsx")
+write_xlsx(FACSdata, "FACSdata.xlsx")
 
 # *Dotplot of expressed Genes* -----------------------------------------------------------------------------
 createFolder("Dotplots_Gene_summary")
@@ -2317,7 +2319,7 @@ FACSdata <- FACSdata_copy
 # *Gene Expr. Statistics* ----------------------------------------------------------------------------------------------------
 # As they are non-normal disributed, dependent with similar variance
 # Adjust to yes if you want plots to be saved or n if not
-plot_save <- "n"
+plot_save <- "y"
 
 # remove unmatched CTR for ANOVA too 
 data_mean_matched <- dataFINALmean %>% filter(!(Timepoint == "TP0" & !SampleID %in% Matched_TP0_Gene))
@@ -2379,11 +2381,11 @@ for (j in 1:length(unique(data_mean_matched$Gene))) {
                                              TP3_P_Value = tp_p_values[3], 
                                              TP4_P_Value = tp_p_values[4]))
         # Plot only if there is a significant p-value (<= 0.05)
-        plot_save <- "n"
-        if (p_value_min <= 0.05) {
-            plot_save <- "y"
-        }
-        
+        # plot_save <- "n"
+        # if (p_value_min <= 0.05) {
+        #     plot_save <- "y"
+        # }
+        # 
         if (plot_save == "y") {
             #my_colors <- c("darkgreen", "orange", "red", "magenta", "purple") 
             plot_name <- paste(gene, " expression of ", sup, " Monocytes (Control vs post-stroke", sep = "")
@@ -2797,7 +2799,7 @@ for (i in 1:length(unique(data_mean_matched$Gene))) {
             
             if (plot_save == "y") {
                 file_name_facet <- paste0(folder, "/", title_facet, "_Mean_SEM.png")
-                ggsave(filename = file_name_facet)
+                ggsave(filename = file_name_facet, width = 9, height = 5)
             }
             
             # Initialize a list to store p-values for timepoints
