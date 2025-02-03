@@ -1737,6 +1737,7 @@ FACSdata_copy <- FACSdata
 #### 1WAY ANOVA* ----------------------------------------------------------------------------------------------------
 
 ANOVA_FACSdata <- FACSdata %>% filter(!(Timepoint == "TP0" & SampleID %in% Unmatched_TP0_FACS))
+write_xlsx(ANOVA_FACSdata, "ANOVA_FACSdata.xlsx")
 
 # with wilcox
 ANOVA_FACSall <- automate_anova_extraction(output_location, "Wilcox_FACS_Plots", 
