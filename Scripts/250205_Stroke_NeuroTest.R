@@ -3533,7 +3533,7 @@ ggplot(Predictors_Ratio_TP1, aes(Gene_Combined2, Sample_Combo2, fill= Estimate))
     scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
                          midpoint = 0, limits = c(-0.65, 0.71)) +
     geom_text(aes(label = Significance), color = "white", size = 12, 
-              hjust = 0.5, vjust = 0.5) +  # Center the text in the squares
+              hjust = 0.5, vjust = 0.8) +  # Center the text in the squares
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
     labs(title = name_plot, y = "Suptype", x = "Gene", fill = "Estimate")+
@@ -3548,7 +3548,7 @@ ggplot(Predictors_Ratio_TP2, aes(Gene_Combined2, Sample_Combo2, fill= Estimate))
     scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
                          midpoint = 0, limits = c(-0.68, 0.8)) +
     geom_text(aes(label = Significance), color = "white", size = 12, 
-              hjust = 0.5, vjust = 0.5) +  # Center the text in the squares
+              hjust = 0.5, vjust = 0.8) +  # Center the text in the squares
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
     labs(title = name_plot, y = "Suptype", x = "Gene", fill = "Estimate")+
