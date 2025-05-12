@@ -997,6 +997,7 @@ append_correlation_results <- function(data, variable, gene, subpop, tp, subgrou
         lm_result <- lm(mean_capZ ~ get(variable), data = data)
         coef_x <- summary(lm_result)$coefficients[2, 1]
         ci <- confint(lm_result)[2, ]
+        IC <- summary(lm_result)$coefficients[1, 1]
         
         # Append to results dataframe
         row <- data.frame(
@@ -1013,6 +1014,7 @@ append_correlation_results <- function(data, variable, gene, subpop, tp, subgrou
             Coefficient = coef_x,
             Coef_CI_Lower = ci[1],
             Coef_CI_Upper = ci[2],
+            Intercept = IC,
             Subgroup = subgroup,
             Subgroup_Value = value
         )
@@ -1030,7 +1032,7 @@ append_correlation_results <- function(data, variable, gene, subpop, tp, subgrou
             # Create the plot and save it
             plot <- ggplot(data = data, aes_string(x = variable, y = "mean_capZ")) +
                 geom_smooth(method = "glm", color = "black") +
-                geom_point(aes(color = Category), size = 2) +
+                geom_point(aes(color = Recovery), size = 2) +
                 ggtitle(titel) +
                 xlab(variable) +
                 ylab(paste(gene, "expression (Z-scored from CT - CT Sample Median)")) +
@@ -1080,6 +1082,7 @@ perform_linear_regression_correlation <- function(data, variable, folder_prefix)
                                       Coefficient = numeric(),
                                       Coef_CI_Lower = numeric(),
                                       Coef_CI_Upper = numeric(),
+                                      Intercept = numeric(),
                                       Subgroup = character(),
                                       Subgroup_Value = character())
     
@@ -3169,6 +3172,7 @@ LinReg_NHISS_Ratio_capZ <- perform_linear_regression_correlation(dataFINALmean, 
 
 #Focus only on TP1 & TP2
 LinReg_NHISS_Ratio_capZ <-LinReg_NHISS_Ratio_capZ %>% filter(LinReg_NHISS_Ratio_capZ$Timepoint == c("TP1", "TP2"))
+#write.csv(LinReg_NHISS_Ratio_capZ, "LinReg_Results_capZ/LinReg_NHISS_Ratio_capZ.csv", row.names = FALSE)
 
 LinReg_NHISS_Ratio_sigGenes <- LinReg_NHISS_Ratio_capZ %>% filter(LinReg_NHISS_Ratio_capZ$p.value <0.05)
 write.csv(LinReg_NHISS_Ratio_sigGenes, "LinReg_Results_capZ/LinReg_NHISS_Ratio_sigGenes.csv", row.names = FALSE)
@@ -3296,167 +3300,167 @@ linear_gradient <- function() {
                           guide = "colorbar",
                           na.value = "grey50")  # Color for NA values
 }
-#### NHISS_End (Estimate) -----------------------
-Predictors_End <- LinReg_NHISS_End_capZ #%>% filter(Subgroup == "All")
-# Predictors_End   <- Predictors_End  %>% filter(Timepoint !=  "TP0")
-# Predictors_End   <- Predictors_End  %>% filter(Timepoint !=  "TP4")
-# Predictors_End   <- Predictors_End  %>% filter(Timepoint !=  "TP3")
-
-# Relabel the timepoints: PS = post-stroke
-Predictors_End$Timepoint[grep("TP1",Predictors_End$Timepoint)]  <- "24 hours"
-Predictors_End$Timepoint[grep("TP2",Predictors_End$Timepoint)]  <- "3-5 days"
-
-#Create a new column for Timepoint and Subpopulation combination
-Predictors_End  <- Predictors_End  %>%
-    mutate(Sample_Combo2 = paste(Timepoint, Subpopulation, sep = "_")) %>%
-    mutate(Sample_Combo = paste(Subpopulation, Timepoint, sep = "_"))  %>%
-    mutate(Gene_Combined = paste(GeneID, Gene, sep = "_"))
-
-
-# Ensure Sample_Combo is ordered alphabetically
-Predictors_End  <- Predictors_End  %>%
-    mutate(Sample_Combo = factor(Sample_Combo, levels = sort(unique(Sample_Combo)))) %>%
-    mutate(Sample_Combo2 = factor(Sample_Combo2, levels = sort(unique(Sample_Combo2)))) %>%
-    mutate(Gene_Combined = paste(GeneID, Gene, sep = "_"))
-
-Predictors_End$Significance <- ifelse(Predictors_End $p.value < 0.001, "***",
-                                            ifelse(Predictors_End $p.value < 0.01, "**",
-                                                   ifelse(Predictors_End $p.value < 0.05, "*", "")))
-
-####  Heatmaps - all genes
-# name_plot <- "Correlation of acute (24 hours & 3-5 days PS) gene expr. with longterm NHISS (3 months PS) - by subtype"
-# ggplot(Predictors_End , aes(Sample_Combo, Gene_Combined, fill= Estimate)) + 
-#     geom_tile() +
-#     scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
-#                          midpoint = 0, limits = c(-0.79, 0.79)) +
-#     geom_text(aes(label = Significance), color = "white", size = 4, 
-#               hjust = 0.5, vjust = 0.5) +  # Center the text in the squares
-#     theme_minimal() +
-#     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-#     labs(title = "Correlation of Gene expr. with NHISS at 3 months PS", x = "Timepoint & Suptype", y = "Gene", fill = "Estimate")
-# ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
-#        plot = last_plot(), width = 5, height = 10, dpi = 300)
+# #### NHISS_End (Estimate) -----------------------
+# Predictors_End <- LinReg_NHISS_End_capZ #%>% filter(Subgroup == "All")
+# # Predictors_End   <- Predictors_End  %>% filter(Timepoint !=  "TP0")
+# # Predictors_End   <- Predictors_End  %>% filter(Timepoint !=  "TP4")
+# # Predictors_End   <- Predictors_End  %>% filter(Timepoint !=  "TP3")
 # 
-# name_plot <- "Correlation of acute (24 hours & 3-5 days PS) gene expr. with longterm NHISS (3 months PS) - by subtype (transposed)"
-# ggplot(Predictors_End , aes(Gene_Combined, Sample_Combo, fill= Estimate)) + 
-#     geom_tile() +
+# # Relabel the timepoints: PS = post-stroke
+# Predictors_End$Timepoint[grep("TP1",Predictors_End$Timepoint)]  <- "24 hours"
+# Predictors_End$Timepoint[grep("TP2",Predictors_End$Timepoint)]  <- "3-5 days"
+# 
+# #Create a new column for Timepoint and Subpopulation combination
+# Predictors_End  <- Predictors_End  %>%
+#     mutate(Sample_Combo2 = paste(Timepoint, Subpopulation, sep = "_")) %>%
+#     mutate(Sample_Combo = paste(Subpopulation, Timepoint, sep = "_"))  %>%
+#     mutate(Gene_Combined = paste(GeneID, Gene, sep = "_"))
+# 
+# 
+# # Ensure Sample_Combo is ordered alphabetically
+# Predictors_End  <- Predictors_End  %>%
+#     mutate(Sample_Combo = factor(Sample_Combo, levels = sort(unique(Sample_Combo)))) %>%
+#     mutate(Sample_Combo2 = factor(Sample_Combo2, levels = sort(unique(Sample_Combo2)))) %>%
+#     mutate(Gene_Combined = paste(GeneID, Gene, sep = "_"))
+# 
+# Predictors_End$Significance <- ifelse(Predictors_End $p.value < 0.001, "***",
+#                                             ifelse(Predictors_End $p.value < 0.01, "**",
+#                                                    ifelse(Predictors_End $p.value < 0.05, "*", "")))
+# 
+# ####  Heatmaps - all genes
+# # name_plot <- "Correlation of acute (24 hours & 3-5 days PS) gene expr. with longterm NHISS (3 months PS) - by subtype"
+# # ggplot(Predictors_End , aes(Sample_Combo, Gene_Combined, fill= Estimate)) + 
+# #     geom_tile() +
+# #     scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+# #                          midpoint = 0, limits = c(-0.79, 0.79)) +
+# #     geom_text(aes(label = Significance), color = "white", size = 4, 
+# #               hjust = 0.5, vjust = 0.5) +  # Center the text in the squares
+# #     theme_minimal() +
+# #     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+# #     labs(title = "Correlation of Gene expr. with NHISS at 3 months PS", x = "Timepoint & Suptype", y = "Gene", fill = "Estimate")
+# # ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
+# #        plot = last_plot(), width = 5, height = 10, dpi = 300)
+# # 
+# # name_plot <- "Correlation of acute (24 hours & 3-5 days PS) gene expr. with longterm NHISS (3 months PS) - by subtype (transposed)"
+# # ggplot(Predictors_End , aes(Gene_Combined, Sample_Combo, fill= Estimate)) + 
+# #     geom_tile() +
+# #     scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+# #                          midpoint = 0, limits = c(-0.79, 0.68)) +
+# #     geom_text(aes(label = Significance), color = "white", size = 4, 
+# #               hjust = 0.5, vjust = 0.5) +  # Center the text in the squares
+# #     theme_minimal() +
+# #     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+# #     labs(title = name_plot, y = "Timepoint & Suptype", x = "Gene", fill = "Estimate")+
+# #     scale_y_discrete(limits = rev(levels(Predictors_End $Sample_Combo))) 
+# # ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
+# #        plot = last_plot(), width = 15, height = 5, dpi = 300)
+# 
+# name_plot <- "Correlation of acute (24 hours & 3-5 days PS) gene expr. with longterm NHISS (3 months PS)"
+# ggplot(Predictors_End , aes(Gene_Combined, Sample_Combo2, fill= Estimate)) + 
+#     geom_tile(color = "white") +  # Add white grid lines
 #     scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
 #                          midpoint = 0, limits = c(-0.79, 0.68)) +
-#     geom_text(aes(label = Significance), color = "white", size = 4, 
+#     geom_text(aes(label = Significance), color = "white", size = 10, 
 #               hjust = 0.5, vjust = 0.5) +  # Center the text in the squares
 #     theme_minimal() +
 #     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
 #     labs(title = name_plot, y = "Timepoint & Suptype", x = "Gene", fill = "Estimate")+
-#     scale_y_discrete(limits = rev(levels(Predictors_End $Sample_Combo))) 
+#     scale_y_discrete(limits = rev(levels(Predictors_End $Sample_Combo2))) 
 # ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
-#        plot = last_plot(), width = 15, height = 5, dpi = 300)
-
-name_plot <- "Correlation of acute (24 hours & 3-5 days PS) gene expr. with longterm NHISS (3 months PS)"
-ggplot(Predictors_End , aes(Gene_Combined, Sample_Combo2, fill= Estimate)) + 
-    geom_tile(color = "white") +  # Add white grid lines
-    scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
-                         midpoint = 0, limits = c(-0.79, 0.68)) +
-    geom_text(aes(label = Significance), color = "white", size = 10, 
-              hjust = 0.5, vjust = 0.5) +  # Center the text in the squares
-    theme_minimal() +
-    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-    labs(title = name_plot, y = "Timepoint & Suptype", x = "Gene", fill = "Estimate")+
-    scale_y_discrete(limits = rev(levels(Predictors_End $Sample_Combo2))) 
-ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
-       plot = last_plot(), width = 15, height = 4.5, dpi = 300)
-
-#### NHISS_End - sig. Genes: -----------------
-Predictors_End  <- merge(Predictors_End , Metadata_GeneID, by = "Gene")
-
-Predictors_End  <- Predictors_End  %>%
-    mutate(Gene_Combined2 = paste(GeneID_End, Gene, sep = "_"))  # Combine GeneID and Gene
-
-# Filter rows where p-value is <= 0.5
-significant_genes <- Predictors_End  %>% filter(Predictors_End$p.value <0.05)
-significant_genes <- unique(significant_genes$Gene)
-
-# adjust data frame accordingly
-Predictors_End  <- Predictors_End  %>%
-    filter(Gene %in% significant_genes)
-
-#### Heatmap - sig. Genes
-name_plot <- "Correlation of acute (24 hours & 3-5 days PS) gene expr. with longterm NHISS (3 months PS) - only sig. Genes"
-ggplot(Predictors_End , aes(Gene_Combined2, Sample_Combo2, fill= Estimate)) + 
-    geom_tile(color = "white") +  # Add white grid lines
-    scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
-                         midpoint = 0, limits = c(-0.79, 0.68)) +
-    geom_text(aes(label = Significance), color = "white", size = 10, 
-              hjust = 0.5, vjust = 0.5) +  # Center the text in the squares
-    theme_minimal() +
-    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-    labs(title = name_plot, y = "Timepoint & Suptype", x = "Gene", fill = "Estimate")+
-    scale_y_discrete(limits = rev(levels(Predictors_End $Sample_Combo2))) 
-ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
-       plot = last_plot(), width = 9, height = 5, dpi = 300)
-
-#### NHISS_Diff (Estimate) -----------------------
-Predictors_Diff <- LinReg_NHISS_Diff_capZ 
-# Relabel the timepoints: 
-Predictors_Diff$Timepoint[grep("TP1",Predictors_Diff$Timepoint)]  <- "24 hours"
-Predictors_Diff$Timepoint[grep("TP2",Predictors_Diff$Timepoint)]  <- "3-5 days"
-
-#Create a new column for Timepoint and Subpopulation combination
-Predictors_Diff  <- Predictors_Diff  %>%
-    mutate(Sample_Combo2 = paste(Timepoint, Subpopulation, sep = "_")) %>%
-    mutate(Sample_Combo = paste(Subpopulation, Timepoint, sep = "_"))  %>%
-    mutate(Gene_Combined = paste(GeneID, Gene, sep = "_"))
-# Ensure Sample_Combo is ordered alphabetically
-Predictors_Diff  <- Predictors_Diff  %>%
-    mutate(Sample_Combo = factor(Sample_Combo, levels = sort(unique(Sample_Combo)))) %>%
-    mutate(Sample_Combo2 = factor(Sample_Combo2, levels = sort(unique(Sample_Combo2)))) %>%
-    mutate(Gene_Combined = paste(GeneID, Gene, sep = "_"))
-
-Predictors_Diff$Significance <- ifelse(Predictors_Diff $p.value < 0.001, "***",
-                                      ifelse(Predictors_Diff $p.value < 0.01, "**",
-                                             ifelse(Predictors_Diff $p.value < 0.05, "*", "")))
-#### Heatmap - all genes
-name_plot <- "Correlation of acute (24 hours & 3-5 days PS) gene expr. with difference in NHISS (24h vs 3 months PS)"
-ggplot(Predictors_Diff , aes(Gene_Combined, Sample_Combo2, fill= Estimate)) + 
-    geom_tile(color = "white") +  # Add white grid lines
-    scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
-                         midpoint = 0, limits = c(-0.79, 0.68)) +
-    geom_text(aes(label = Significance), color = "white", size = 10, 
-              hjust = 0.5, vjust = 0.5) +  # Center the text in the squares
-    theme_minimal() +
-    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-    labs(title = name_plot, y = "Timepoint & Suptype", x = "Gene", fill = "Estimate")+
-    scale_y_discrete(limits = rev(levels(Predictors_Diff $Sample_Combo2))) 
-ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
-       plot = last_plot(), width = 15, height = 4.5, dpi = 300)
-
-#### NHISS_Diff - sig. Genes: -----------------
-Predictors_Diff  <- merge(Predictors_Diff , Metadata_GeneID, by = "Gene")
-
-Predictors_Diff  <- Predictors_Diff  %>%
-    mutate(Gene_Combined2 = paste(GeneID_Diff, Gene, sep = "_"))  # Combine GeneID and Gene
-
-# Filter rows where p-value is <= 0.5
-significant_genes <- Predictors_Diff  %>% filter(Predictors_Diff$p.value <0.05)
-significant_genes <- unique(significant_genes$Gene)
-
-# adjust data frame accordingly
-Predictors_Diff  <- Predictors_Diff  %>%
-    filter(Gene %in% significant_genes)
-
-#### Heatmap - sig. Genes
-name_plot <- "Correlation of acute (24 hours & 3-5 days PS) gene expr. with with difference in NHISS (24h vs 3 months PS) - only sig. Genes"
-ggplot(Predictors_Diff , aes(Gene_Combined2, Sample_Combo2, fill= Estimate)) + 
-    geom_tile(color = "white") +  # Add white grid lines
-    scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
-                         midpoint = 0, limits = c(-0.7, 0.6)) +
-    geom_text(aes(label = Significance), color = "white", size = 10, 
-              hjust = 0.5, vjust = 0.5) +  # Center the text in the squares
-    theme_minimal() +
-    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-    labs(title = name_plot, y = "Timepoint & Suptype", x = "Gene", fill = "Estimate")+
-    scale_y_discrete(limits = rev(levels(Predictors_Diff $Sample_Combo2))) 
-ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
-       plot = last_plot(), width = 5, height = 5, dpi = 300)
+#        plot = last_plot(), width = 15, height = 4.5, dpi = 300)
+# 
+# #### NHISS_End - sig. Genes: -----------------
+# Predictors_End  <- merge(Predictors_End , Metadata_GeneID, by = "Gene")
+# 
+# Predictors_End  <- Predictors_End  %>%
+#     mutate(Gene_Combined2 = paste(GeneID_End, Gene, sep = "_"))  # Combine GeneID and Gene
+# 
+# # Filter rows where p-value is <= 0.5
+# significant_genes <- Predictors_End  %>% filter(Predictors_End$p.value <0.05)
+# significant_genes <- unique(significant_genes$Gene)
+# 
+# # adjust data frame accordingly
+# Predictors_End  <- Predictors_End  %>%
+#     filter(Gene %in% significant_genes)
+# 
+# #### Heatmap - sig. Genes
+# name_plot <- "Correlation of acute (24 hours & 3-5 days PS) gene expr. with longterm NHISS (3 months PS) - only sig. Genes"
+# ggplot(Predictors_End , aes(Gene_Combined2, Sample_Combo2, fill= Estimate)) + 
+#     geom_tile(color = "white") +  # Add white grid lines
+#     scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+#                          midpoint = 0, limits = c(-0.79, 0.68)) +
+#     geom_text(aes(label = Significance), color = "white", size = 10, 
+#               hjust = 0.5, vjust = 0.5) +  # Center the text in the squares
+#     theme_minimal() +
+#     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+#     labs(title = name_plot, y = "Timepoint & Suptype", x = "Gene", fill = "Estimate")+
+#     scale_y_discrete(limits = rev(levels(Predictors_End $Sample_Combo2))) 
+# ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
+#        plot = last_plot(), width = 9, height = 5, dpi = 300)
+# 
+# #### NHISS_Diff (Estimate) -----------------------
+# Predictors_Diff <- LinReg_NHISS_Diff_capZ 
+# # Relabel the timepoints: 
+# Predictors_Diff$Timepoint[grep("TP1",Predictors_Diff$Timepoint)]  <- "24 hours"
+# Predictors_Diff$Timepoint[grep("TP2",Predictors_Diff$Timepoint)]  <- "3-5 days"
+# 
+# #Create a new column for Timepoint and Subpopulation combination
+# Predictors_Diff  <- Predictors_Diff  %>%
+#     mutate(Sample_Combo2 = paste(Timepoint, Subpopulation, sep = "_")) %>%
+#     mutate(Sample_Combo = paste(Subpopulation, Timepoint, sep = "_"))  %>%
+#     mutate(Gene_Combined = paste(GeneID, Gene, sep = "_"))
+# # Ensure Sample_Combo is ordered alphabetically
+# Predictors_Diff  <- Predictors_Diff  %>%
+#     mutate(Sample_Combo = factor(Sample_Combo, levels = sort(unique(Sample_Combo)))) %>%
+#     mutate(Sample_Combo2 = factor(Sample_Combo2, levels = sort(unique(Sample_Combo2)))) %>%
+#     mutate(Gene_Combined = paste(GeneID, Gene, sep = "_"))
+# 
+# Predictors_Diff$Significance <- ifelse(Predictors_Diff $p.value < 0.001, "***",
+#                                       ifelse(Predictors_Diff $p.value < 0.01, "**",
+#                                              ifelse(Predictors_Diff $p.value < 0.05, "*", "")))
+# #### Heatmap - all genes
+# name_plot <- "Correlation of acute (24 hours & 3-5 days PS) gene expr. with difference in NHISS (24h vs 3 months PS)"
+# ggplot(Predictors_Diff , aes(Gene_Combined, Sample_Combo2, fill= Estimate)) + 
+#     geom_tile(color = "white") +  # Add white grid lines
+#     scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+#                          midpoint = 0, limits = c(-0.79, 0.68)) +
+#     geom_text(aes(label = Significance), color = "white", size = 10, 
+#               hjust = 0.5, vjust = 0.5) +  # Center the text in the squares
+#     theme_minimal() +
+#     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+#     labs(title = name_plot, y = "Timepoint & Suptype", x = "Gene", fill = "Estimate")+
+#     scale_y_discrete(limits = rev(levels(Predictors_Diff $Sample_Combo2))) 
+# ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
+#        plot = last_plot(), width = 15, height = 4.5, dpi = 300)
+# 
+# #### NHISS_Diff - sig. Genes: -----------------
+# Predictors_Diff  <- merge(Predictors_Diff , Metadata_GeneID, by = "Gene")
+# 
+# Predictors_Diff  <- Predictors_Diff  %>%
+#     mutate(Gene_Combined2 = paste(GeneID_Diff, Gene, sep = "_"))  # Combine GeneID and Gene
+# 
+# # Filter rows where p-value is <= 0.5
+# significant_genes <- Predictors_Diff  %>% filter(Predictors_Diff$p.value <0.05)
+# significant_genes <- unique(significant_genes$Gene)
+# 
+# # adjust data frame accordingly
+# Predictors_Diff  <- Predictors_Diff  %>%
+#     filter(Gene %in% significant_genes)
+# 
+# #### Heatmap - sig. Genes
+# name_plot <- "Correlation of acute (24 hours & 3-5 days PS) gene expr. with with difference in NHISS (24h vs 3 months PS) - only sig. Genes"
+# ggplot(Predictors_Diff , aes(Gene_Combined2, Sample_Combo2, fill= Estimate)) + 
+#     geom_tile(color = "white") +  # Add white grid lines
+#     scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+#                          midpoint = 0, limits = c(-0.7, 0.6)) +
+#     geom_text(aes(label = Significance), color = "white", size = 10, 
+#               hjust = 0.5, vjust = 0.5) +  # Center the text in the squares
+#     theme_minimal() +
+#     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+#     labs(title = name_plot, y = "Timepoint & Suptype", x = "Gene", fill = "Estimate")+
+#     scale_y_discrete(limits = rev(levels(Predictors_Diff $Sample_Combo2))) 
+# ggsave(filename = paste(new_folder, "/", name_plot, ".png", sep = ""),
+#        plot = last_plot(), width = 5, height = 5, dpi = 300)
 
 #### NHISS_Ratio (Estimate) -----------------------
 Predictors_Ratio <- LinReg_NHISS_Ratio_capZ 
