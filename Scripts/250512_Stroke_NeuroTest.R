@@ -1136,7 +1136,7 @@ files <- system( "ls *B2M.csv", intern=T)
 i=1
 raw_data <- read.csv(text=readLines(files[i])[-(1:11)], header = T, sep=',', dec = '.',
                      row.names = 1
-                     )
+)
 
 # delete Call.1 column, and resent column names
 if ( length(colnames(raw_data)) > 13) {
@@ -1225,13 +1225,13 @@ samples <- unique(dataTRIM$Sample)
 #without the T1/T2 separation, we have the plate as a whole normalized against all 4 reads... with it we can split the whole plate into two halves, each standing for its own technical read.
 
 info_rows <- t(data.frame(
-  sapply(dataTRIM$Sample, function(x) {
-    ret <- unlist(stringr::str_split(x, "[_\\s\\.]"))
-    if (length(ret) < 5) {
-      ret <- c(ret, rep(NA, 5 - length(ret)))
-    }
-    ret[1:5]  # Select only the first five elements
-  })
+    sapply(dataTRIM$Sample, function(x) {
+        ret <- unlist(stringr::str_split(x, "[_\\s\\.]"))
+        if (length(ret) < 5) {
+            ret <- c(ret, rep(NA, 5 - length(ret)))
+        }
+        ret[1:5]  # Select only the first five elements
+    })
 ))
 colnames(info_rows) = c("Subpopulation", "Cell_Count", "SampleID","Timepoint","BiologicalReplicate")
 
@@ -1303,9 +1303,64 @@ Metadata_GeneID <- read_excel("Metadata_GeneID.xlsx")
 Plate_info <- read_excel("241014_PlateID.xlsx")
 
 Metadata_NeuroTest <- as.data.frame(read_excel("Metadata_NeuroTest.xlsx", 
-                                     col_types = c("text", "text", "numeric", 
-                                                   "numeric", "numeric", "numeric", 
-                                                   "numeric", "numeric")))
+                                               col_types = c("text", "text", "numeric", 
+                                                             "numeric", "numeric", "numeric", 
+                                                             "numeric", "numeric")))
+
+# Create NHISS_End column based on TP4 -------------------------
+Metadata_NeuroTest$NHISS_End <- NA
+
+# Get TP4 NHISS values
+tp4_values <- Metadata_NeuroTest %>%
+    filter(Timepoint == "TP4") %>%
+    select(SampleID, NHISS) %>%
+    rename(NHISS_TP4 = NHISS)
+
+# Join TP4 NHISS values back to all timepoints
+Metadata_NeuroTest <- Metadata_NeuroTest %>%
+    left_join(tp4_values, by = "SampleID") %>%
+    mutate(NHISS_End = NHISS_TP4) %>%
+    select(-NHISS_TP4)
+
+# Compute NHISS_Ratio for SampleIDs with both TP1 and TP4
+nhiss_ratios <- Metadata_NeuroTest %>%
+    filter(Timepoint %in% c("TP1", "TP4")) %>%
+    group_by(SampleID) %>%
+    summarise(
+        NHISS_TP1 = NHISS[Timepoint == "TP1"][1],
+        NHISS_TP4 = NHISS[Timepoint == "TP4"][1],
+        NHISS_Ratio = if (!is.na(NHISS_TP1) && NHISS_TP1 != 0) {
+            (NHISS_TP1 - NHISS_TP4) / NHISS_TP1
+        } else {
+            NA
+        },
+        .groups = "drop"
+    ) %>%
+    select(SampleID, NHISS_Ratio)
+
+# Join NHISS_Ratio back to Metadata_NeuroTest
+Metadata_NeuroTest <- Metadata_NeuroTest %>%
+    left_join(nhiss_ratios, by = "SampleID")
+
+# Compute NHISS_Ratio for SampleIDs with both TP1 and TP4
+nhiss_diff <- Metadata_NeuroTest %>%
+    filter(Timepoint %in% c("TP1", "TP4")) %>%
+    group_by(SampleID) %>%
+    summarise(
+        NHISS_TP1 = NHISS[Timepoint == "TP1"][1],
+        NHISS_TP4 = NHISS[Timepoint == "TP4"][1],
+        NHISS_Diff = if (!is.na(NHISS_TP1) && NHISS_TP1 != 0) {
+            (NHISS_TP1 - NHISS_TP4)
+        } else {
+            NA
+        },
+        .groups = "drop"
+    ) %>%
+    select(SampleID, NHISS_Diff)
+
+# Join NHISS_Ratio back to Metadata_NeuroTest
+Metadata_NeuroTest <- Metadata_NeuroTest %>%
+    left_join(nhiss_diff, by = "SampleID")
 
 dataAll <- merge(dataEXPAND, metadataP, by = "SampleID", all.x = TRUE)
 #### match the right controls
@@ -1353,33 +1408,6 @@ FACSdata <- merge(FACSdata, Metadata_NeuroTest, by = c("SampleID", "Timepoint"),
 FACSdata$Sex[grep("M",FACSdata$Sex)]  <- "Male"
 FACSdata$Sex[grep("F",FACSdata$Sex)]  <- "Female"
 
-# Correlation with "final" NHISS
-# Initialize NHISS_End with NA
-FACSdata$NHISS_End <- NA
-
-# Assign NHISS_End values for all timepoints based on TP4
-TP4_indices <- which(FACSdata$Timepoint == "TP4")
-TP4_values <- FACSdata$NHISS[TP4_indices]
-
-# Define timepoints to adjust
-timepoints_to_adjust <- c("TP3", "TP2", "TP1")
-
-# Loop through each timepoint and assign NHISS_End
-for (tp in timepoints_to_adjust) {
-    current_indices <- which(FACSdata$Timepoint == tp)
-    min_length <- min(length(current_indices), length(TP4_indices))
-    
-    # Assign TP4 values to the current timepoint
-    FACSdata$NHISS_End[current_indices[1:min_length]] <- TP4_values[1:min_length]
-    
-    # Fill remaining rows with NA if TP4 has fewer values
-    if (length(current_indices) > min_length) {
-        FACSdata$NHISS_End[current_indices[(min_length + 1):length(current_indices)]] <- NA
-    }
-}
-
-# Ensure TP4 values are copied correctly
-FACSdata$NHISS_End[TP4_indices] <- TP4_values
 
 # Combine the data frames based on common values in the "id" column
 # --> here i loose all the test because they are not in the metadata
@@ -1520,10 +1548,10 @@ table(finaldata$.imp)
 data_imputed_mean <- finaldata  %>%
     group_by(SampleID, Gene, Subpopulation,Timepoint, TechnicalReplicate, BiologicalReplicate, Sample, Gene1, Age, Sex, Category, Recovery) %>%    
     summarize(CT = mean(CT_Value, na.rm = TRUE),
-             # CT_sd = sd(CT_Value, na.rm = TRUE), 
-             # CT_N = sum(!is.na(CT_Value)), 
-             # dCT_B2M = mean(dCT_Value, na.rm = TRUE), 
-             # dCT_B2M_sd = sd(dCT_Value, na.rm = TRUE),
+              # CT_sd = sd(CT_Value, na.rm = TRUE), 
+              # CT_N = sum(!is.na(CT_Value)), 
+              # dCT_B2M = mean(dCT_Value, na.rm = TRUE), 
+              # dCT_B2M_sd = sd(dCT_Value, na.rm = TRUE),
               .groups = "drop")
 
 dataFINAL <- as.data.frame(data_imputed_mean)
@@ -1538,9 +1566,9 @@ dataFINAL$CTmedian <- NA
 dataFINAL <- dataFINAL %>%
     group_by(Sample) %>%
     mutate(
-       CTmedian = median(CT[CT < 35], na.rm = TRUE),
-       #CTmean = mean(CT[CT < 35], na.rm = TRUE),
-       #CTgmean = exp(mean(log(CT[CT < 35]), na.rm = TRUE))  # Geometric mean
+        CTmedian = median(CT[CT < 35], na.rm = TRUE),
+        #CTmean = mean(CT[CT < 35], na.rm = TRUE),
+        #CTgmean = exp(mean(log(CT[CT < 35]), na.rm = TRUE))  # Geometric mean
     )
 # normalize all CT value to the Media CT value of each Sample
 dataFINAL$dCT_median <- dataFINAL$CT - dataFINAL$CTmedian
@@ -1557,7 +1585,7 @@ dataFINAL <- dataFINAL %>%
         z_score_dCT = (dCT_median - mean_dCT_Gene) / sd_dCT_Gene,  # Z-score calculation
         inverted_z_score = -z_score_dCT,
         capped_z_score = pmin(pmax(inverted_z_score, -3), 3) 
-        ) %>%
+    ) %>%
     ungroup() 
 
 #### Gene & NHISS Metadata  ----------------
@@ -1568,29 +1596,6 @@ dataFINAL <- merge(dataFINAL, Metadata_GeneID, by = "Gene")
 
 # add the metadata of NHISS score of Patients
 dataFINAL <- merge(dataFINAL, Metadata_NeuroTest, by = c("SampleID", "Timepoint"), all.x = TRUE)
-
-#### NHISS_End Regression* --------------------------------------------------------
-# Correlation with "final" NHISS
-dataFINALmean$NHISS_End <- NA
-# Assign values from NHISS where Timepoint is TP4
-dataFINALmean$NHISS_End[dataFINALmean$Timepoint == "TP4"] <- dataFINALmean$NHISS[dataFINALmean$Timepoint == "TP4"]
-dataFINALmean$NHISS_End[dataFINALmean$Timepoint == "TP3"] <- dataFINALmean$NHISS[dataFINALmean$Timepoint == "TP4"]
-dataFINALmean$NHISS_End[dataFINALmean$Timepoint == "TP2"] <- dataFINALmean$NHISS[dataFINALmean$Timepoint == "TP4"]
-dataFINALmean$NHISS_End[dataFINALmean$Timepoint == "TP1"] <- dataFINALmean$NHISS[dataFINALmean$Timepoint == "TP4"]
-
-# Create a new column NHISS_Diff initialized to NA
-dataFINALmean$NHISS_Ratio <- NA
-
-dataFINALmean <- dataFINALmean %>%
-    group_by(SampleID, Subpopulation, Gene) %>%
-    mutate(
-        NHISS_Ratio = if (all(c("TP1", "TP4") %in% Timepoint)) {
-            (NHISS[Timepoint == "TP1"] - NHISS[Timepoint == "TP4"])/NHISS[Timepoint == "TP1"]
-        } else {
-            NA
-        }
-    ) %>%
-    ungroup()
 
 # List of Patients (2x 15))
 patients <- unique(dataFINAL$SampleID)
@@ -1609,13 +1614,13 @@ dataFINAL$DaysPS[grep("TP4",dataFINAL$Timepoint)]  <- 90
 
 #### MEAN values for the ANOVA & so ----------------
 dataFINALmean <- dataFINAL %>%
-        group_by(SampleID, Sex, Age, Category, Timepoint, DaysPS, Subpopulation, 
-                 Gene, GeneID, Gene_Group, Recovery, NHISS, mRS, Barthel, MoCA,
-                 `HADS_Anxiety`, `HADS_Depression`) %>%
-        summarise(mean_Z = mean(inverted_z_score), sd_Z = sd(inverted_z_score),
-                  mean_capZ = mean(capped_z_score), sd_capZ = sd(capped_z_score)
-                  )%>%
-  ungroup()
+    group_by(SampleID, Sex, Age, Category, Timepoint, DaysPS, Subpopulation, 
+             Gene, GeneID, Gene_Group, Recovery, NHISS, mRS, Barthel, MoCA,
+             `HADS_Anxiety`, `HADS_Depression`, NHISS_End, NHISS_Ratio) %>%
+    summarise(mean_Z = mean(inverted_z_score), sd_Z = sd(inverted_z_score),
+              mean_capZ = mean(capped_z_score), sd_capZ = sd(capped_z_score)
+    )%>%
+    ungroup()
 
 #### File Location ----------------
 today <- Sys.Date()
@@ -1627,6 +1632,9 @@ write_xlsx(fails, "Fail_rates.xlsx")
 write_xlsx(dataFINAL, "dataFINAL.xlsx")
 write_xlsx(dataFINALmean, "dataFINALmean.xlsx")
 write_xlsx(FACSdata, "FACSdata.xlsx")
+write.csv(FACSdata, "FACSdata_clean.csv", row.names = FALSE)
+summary(dataFINAL)
+summary(dataFINALmean)
 
 # *Dotplot of expressed Genes* -----------------------------------------------------------------------------
 createFolder("Dotplots_Gene_summary")
@@ -3932,7 +3940,187 @@ for (tp in unique(Age_correlation_capZ$Timepoint)) {
 sigGenes <- filter(Age_correlation_capZ, p.value <= 0.05) 
 unique(sigGenes$Gene)
 
-# *Sig Regression - Gene Overview* --------------------------
+### Random Forrest Analysis over all --------------------------------------------------
+library(randomForest)
+library(caret)
+library(tidyr)
+
+# extracte genes of the data set
+genes_tp2 <- unique(dataFINALmean$Gene)
+
+# make a separate data frame for each value:
+Data_meanCapZ <- dataFINALmean  %>% select(all_of(c("SampleID", "Timepoint", "Subpopulation", "Gene", "mean_capZ"))) 
+Data_sdCapZ <- dataFINALmean  %>% select(all_of(c("SampleID", "Timepoint", "Subpopulation", "Gene", "sd_capZ"))) 
+#Data_meanZ <- dataFINALmean  %>% select(all_of(c("SampleID", "Timepoint", "Subpopulation", "Gene", "mean_Z"))) 
+#Data_sdZ <- dataFINALmean  %>% select(all_of(c("SampleID", "Timepoint", "Subpopulation", "Gene", "sd_Z"))) 
+
+#filter 
+#Data_meanZ <- as.data.frame(SampleID=dataFINALmean$SampleID, Timepoint=dataFINALmean$Timepoint, Subpopulation=dataFINALmean$Subpopulation, Gene=dataFINALmean$Gene, 
+#                    Value=dataFINALmean$mean_capZ)
+
+# make each gene a column and add them all listed to the features
+matrix_meanCapZ <-  pivot_wider(Data_meanCapZ , names_from = Gene, values_from = mean_capZ)
+matrix_sdCapZ <-  pivot_wider(Data_sdCapZ , names_from = Gene, values_from = sd_capZ)
+#matrix_meanZ <-  pivot_wider(Data_meanZ , names_from = Gene, values_from = mean_Z)
+#matrix_sdZ <-  pivot_wider(Data_sdZ , names_from = Gene, values_from = sd_Z)
+
+# merge with the Neurological tests
+matrix_meanCapZ <- merge(matrix_meanCapZ, Metadata_NeuroTest, by = c("SampleID", "Timepoint"), all.x = TRUE)
+matrix_sdCapZ <- merge(matrix_sdCapZ, Metadata_NeuroTest, by = c("SampleID", "Timepoint"), all.x = TRUE)
+
+# add the metadata of of Patients
+metadataP <- metadataP %>% select(all_of(c("SampleID", "Sex", "Age"))) 
+matrix_meanCapZ <- merge(matrix_meanCapZ , metadataP, by = "SampleID", all.x = TRUE)
+matrix_sdCapZ <- merge(matrix_sdCapZ , metadataP, by = "SampleID", all.x = TRUE)
+
+# Create output folders
+plot_folder <- "RF_Plots"
+imp_folder <- "RF_Importance_Plots"
+if (!dir.exists(plot_folder)) dir.create(plot_folder)
+if (!dir.exists(imp_folder)) dir.create(imp_folder)
+
+
+# Filter for TP2
+model_data <- matrix_meanCapZ %>% filter(Timepoint == "TP2")
+
+# Define features and target
+features <- c("Subpopulation", "Age", "Sex", "NHISS", "mRS", "Barthel", "MoCA", "HADS_Anxiety", "HADS_Depression",
+              as.vector(genes_tp2))
+#target <- "NHISS_Ratio"
+target <- "NHISS_Diff"
+#target <- "NHISS_End"
+
+# Convert categorical variables to factors
+model_data$Sex <- as.factor(model_data$Sex)
+#model_data$Category <- as.factor(model_data$Category)
+model_data$Subpopulation <- as.factor(model_data$Subpopulation)
+
+
+model_data <- model_data %>%
+    select(all_of(c(features, target))) %>%
+    drop_na()
+
+# Skip if not enough data --> make a warning if there are too little datasets
+# nrow(model_data) < 10
+
+# Split data
+set.seed(123)
+train_index <- createDataPartition(model_data[[target]], p = 0.8, list = FALSE)
+train_data <- model_data[train_index, ]
+test_data <- model_data[-train_index, ]
+
+# Train model
+rf_model <- randomForest(NHISS_Diff ~ ., data = train_data, importance = TRUE, ntree = 500)
+
+
+# Predict
+predictions <- predict(rf_model, newdata = test_data)
+
+# Save prediction plot
+plot_data <- data.frame(Actual = test_data[[target]], Predicted = predictions)
+p <- ggplot(plot_data, aes(x = Actual, y = Predicted)) +
+    geom_point(color = "steelblue", alpha = 0.7) +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "darkred") +
+    labs(title = paste("RF Predictions vs Actual - NHISS_Diff"),
+         x = "Actual NHISS_Diff", y = "Predicted NHISS_Diff") +
+    theme_minimal()
+ggsave(filename = file.path(plot_folder, paste0("RF_Pred_vs_Actual_NHISS_Diff.png")), plot = p)
+
+# Save variable importance plot
+png(filename = file.path(imp_folder, paste0("VarImpPlot_NHISS_Diff.png")), width = 800, height = 600)
+varImpPlot(rf_model, main = paste("Variable Importance - NHISS_Diff"))
+dev.off()
+
+# Extract importance
+imp <- importance(rf_model)[, 1]  # MeanDecreaseAccuracy
+imp_df <- data.frame(t(imp))
+
+# Save to CSV
+write.csv(imp_df, "RF_Feature_Importances_Pivot_NHISS_Diff.csv", row.names = FALSE)
+
+imp_df <- data.frame(Feature = names(imp), Importance = as.vector(imp))
+
+imp_df <- imp_df %>% arrange(desc(Importance))
+
+
+imp_df <- data.frame(Feature = rownames(importance(rf_model)), Importance = importance(rf_model)[, 1])
+p_imp <- ggplot(imp_df, aes(x = reorder(Feature, Importance), y = Importance)) +
+    geom_bar(stat = "identity", fill = "steelblue") +
+    coord_flip() +
+    labs(title = "Variable Importance", x = "Feature", y = "Mean Decrease in Accuracy") +
+    theme_minimal()
+ggsave(filename = file.path(imp_folder, "VarImpPlot_NHISS_Diff_ggplot.png"), plot = p_imp)
+
+png(filename = file.path(imp_folder, paste0("VarImpPlot_NHISS_Diff_compared.png")), width = 800, height = 600)
+varImpPlot(rf_model, main = paste("Variable Importance compared - NHISS_Diff"))
+dev.off()
+
+### for NHISS_End instead of Diff -----------------
+target <- "NHISS_End"
+
+model_data <- matrix_meanCapZ %>% filter(Timepoint == "TP2")
+
+model_data <- model_data %>%
+    select(all_of(c(features, target))) %>%
+    drop_na()
+
+# Skip if not enough data --> make a warning if there are too little datasets
+# nrow(model_data) < 10
+
+# Split data
+set.seed(123)
+train_index <- createDataPartition(model_data[[target]], p = 0.8, list = FALSE)
+train_data <- model_data[train_index, ]
+test_data <- model_data[-train_index, ]
+
+# Train model
+rf_model <- randomForest(NHISS_End ~ ., data = train_data, importance = TRUE, ntree = 500)
+
+
+# Predict
+predictions <- predict(rf_model, newdata = test_data)
+
+# Save prediction plot
+plot_data <- data.frame(Actual = test_data[[target]], Predicted = predictions)
+p <- ggplot(plot_data, aes(x = Actual, y = Predicted)) +
+    geom_point(color = "steelblue", alpha = 0.7) +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "darkred") +
+    labs(title = paste("RF Predictions vs Actual - NHISS_End"),
+         x = "Actual NHISS_End", y = "Predicted NHISS_End") +
+    theme_minimal()
+ggsave(filename = file.path(plot_folder, paste0("RF_Pred_vs_Actual_NHISS_End.png")), plot = p)
+
+# Save variable importance plot
+png(filename = file.path(imp_folder, paste0("VarImpPlotNHISS_End.png")), width = 800, height = 600)
+varImpPlot(rf_model, main = paste("Variable Importance"))
+dev.off()
+
+# Extract importance
+imp <- importance(rf_model)[, 1]  # MeanDecreaseAccuracy
+imp_df <- data.frame(t(imp))
+
+# Save to CSV
+write.csv(imp_df, "RF_Feature_Importances_Pivot_NHISS_End.csv", row.names = FALSE)
+
+imp_df <- data.frame(Feature = names(imp), Importance = as.vector(imp))
+
+imp_df <- imp_df %>% arrange(desc(Importance))
+
+
+imp_df <- data.frame(Feature = rownames(importance(rf_model)), Importance = importance(rf_model)[, 1])
+p_imp <- ggplot(imp_df, aes(x = reorder(Feature, Importance), y = Importance)) +
+    geom_bar(stat = "identity", fill = "steelblue") +
+    coord_flip() +
+    labs(title = "Variable Importance", x = "Feature", y = "Mean Decrease in Accuracy") +
+    theme_minimal()
+ggsave(filename = file.path(imp_folder, "VarImpPlot_NHISS_End_ggplot.png"), plot = p_imp)
+
+png(filename = file.path(imp_folder, paste0("VarImpPlot_NHISS_End_compared.png")), width = 800, height = 600)
+varImpPlot(rf_model, main = paste("Variable Importance compared - NHISS_End"))
+dev.off()
+
+
+# *Sig Regression - Gene Overview* ----------------------------------------------------
 # with a mean for all Timepoints
 Gene_Overview_NHISS <- LinReg_NHISS_capZ %>%
     filter(p.value <= 0.05) %>% 

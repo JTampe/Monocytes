@@ -181,7 +181,7 @@ Metadata_NeuroTest <- as.data.frame(read_excel("Metadata_NeuroTest.xlsx",
                                                              "numeric", "numeric", "numeric", 
                                                              "numeric", "numeric")))
 
-# Create NHISS_End column based on TP4
+# Create NHISS_End column based on TP4 -------------------------
 Metadata_NeuroTest$NHISS_End <- NA
 
 # Get TP4 NHISS values
@@ -196,7 +196,7 @@ Metadata_NeuroTest <- Metadata_NeuroTest %>%
     mutate(NHISS_End = NHISS_TP4) %>%
     select(-NHISS_TP4)
 
-# Step 2: Compute NHISS_Ratio for SampleIDs with both TP1 and TP4
+# Compute NHISS_Ratio for SampleIDs with both TP1 and TP4
 nhiss_ratios <- Metadata_NeuroTest %>%
     filter(Timepoint %in% c("TP1", "TP4")) %>%
     group_by(SampleID) %>%
@@ -215,6 +215,26 @@ nhiss_ratios <- Metadata_NeuroTest %>%
 # Join NHISS_Ratio back to Metadata_NeuroTest
 Metadata_NeuroTest <- Metadata_NeuroTest %>%
     left_join(nhiss_ratios, by = "SampleID")
+
+# Compute NHISS_Ratio for SampleIDs with both TP1 and TP4
+nhiss_diff <- Metadata_NeuroTest %>%
+    filter(Timepoint %in% c("TP1", "TP4")) %>%
+    group_by(SampleID) %>%
+    summarise(
+        NHISS_TP1 = NHISS[Timepoint == "TP1"][1],
+        NHISS_TP4 = NHISS[Timepoint == "TP4"][1],
+        NHISS_Diff = if (!is.na(NHISS_TP1) && NHISS_TP1 != 0) {
+            (NHISS_TP1 - NHISS_TP4)
+        } else {
+            NA
+        },
+        .groups = "drop"
+    ) %>%
+    select(SampleID, NHISS_Diff)
+
+# Join NHISS_Ratio back to Metadata_NeuroTest
+Metadata_NeuroTest <- Metadata_NeuroTest %>%
+    left_join(nhiss_diff, by = "SampleID")
 
 dataAll <- merge(dataEXPAND, metadataP, by = "SampleID", all.x = TRUE)
 #### match the right controls
@@ -451,34 +471,6 @@ dataFINAL <- merge(dataFINAL, Metadata_GeneID, by = "Gene")
 # add the metadata of NHISS score of Patients
 dataFINAL <- merge(dataFINAL, Metadata_NeuroTest, by = c("SampleID", "Timepoint"), all.x = TRUE)
 
-#### NHISS_End Regression* --------------------------------------------------------
-# Correlation with "final" NHISS
-dataFINAL$NHISS_End <- NA
-# Assign values from NHISS where Timepoint is TP4
-dataFINAL$NHISS_End[dataFINAL$Timepoint == "TP4"] <- dataFINAL$NHISS[dataFINAL$Timepoint == "TP4"]
-dataFINAL$NHISS_End[dataFINAL$Timepoint == "TP3"] <- dataFINAL$NHISS[dataFINAL$Timepoint == "TP4"]
-dataFINAL$NHISS_End[dataFINAL$Timepoint == "TP2"] <- dataFINAL$NHISS[dataFINAL$Timepoint == "TP4"]
-dataFINAL$NHISS_End[dataFINAL$Timepoint == "TP1"] <- dataFINAL$NHISS[dataFINAL$Timepoint == "TP4"]
-
-# Compute NHISS_Ratio per SampleID
-nhiss_ratios <- dataFINAL %>%
-    filter(Timepoint %in% c("TP1", "TP4")) %>%
-    group_by(SampleID) %>%
-    summarise(
-        NHISS_TP1 = NHISS[Timepoint == "TP1"][1],
-        NHISS_TP4 = NHISS[Timepoint == "TP4"][1],
-        NHISS_Ratio = if (!is.na(NHISS_TP1) && NHISS_TP1 != 0) {
-            (NHISS_TP1 - NHISS_TP4) / NHISS_TP1
-        } else {
-            NA
-        },
-        .groups = "drop"
-    ) %>%
-    select(SampleID, NHISS_Ratio)
-
-# Join only NHISS_Ratio back to dataFINAL
-dataFINAL <- left_join(dataFINAL, nhiss_ratios, by = "SampleID")
-
 # List of Patients (2x 15))
 patients <- unique(dataFINAL$SampleID)
 no_patients <- length(patients)
@@ -498,7 +490,7 @@ dataFINAL$DaysPS[grep("TP4",dataFINAL$Timepoint)]  <- 90
 dataFINALmean <- dataFINAL %>%
     group_by(SampleID, Sex, Age, Category, Timepoint, DaysPS, Subpopulation, 
              Gene, GeneID, Gene_Group, Recovery, NHISS, mRS, Barthel, MoCA,
-             `HADS_Anxiety`, `HADS_Depression`) %>%
+             `HADS_Anxiety`, `HADS_Depression`, NHISS_End, NHISS_Ratio) %>%
     summarise(mean_Z = mean(inverted_z_score), sd_Z = sd(inverted_z_score),
               mean_capZ = mean(capped_z_score), sd_capZ = sd(capped_z_score)
     )%>%
@@ -515,4 +507,5 @@ write_xlsx(dataFINAL, "dataFINAL.xlsx")
 write_xlsx(dataFINALmean, "dataFINALmean.xlsx")
 write_xlsx(FACSdata, "FACSdata.xlsx")
 write.csv(FACSdata, "FACSdata_clean.csv", row.names = FALSE)
-
+summary(dataFINAL)
+summary(dataFINALmean)
