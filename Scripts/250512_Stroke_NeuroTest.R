@@ -3954,10 +3954,6 @@ Data_sdCapZ <- dataFINALmean  %>% select(all_of(c("SampleID", "Timepoint", "Subp
 #Data_meanZ <- dataFINALmean  %>% select(all_of(c("SampleID", "Timepoint", "Subpopulation", "Gene", "mean_Z"))) 
 #Data_sdZ <- dataFINALmean  %>% select(all_of(c("SampleID", "Timepoint", "Subpopulation", "Gene", "sd_Z"))) 
 
-#filter 
-#Data_meanZ <- as.data.frame(SampleID=dataFINALmean$SampleID, Timepoint=dataFINALmean$Timepoint, Subpopulation=dataFINALmean$Subpopulation, Gene=dataFINALmean$Gene, 
-#                    Value=dataFINALmean$mean_capZ)
-
 # make each gene a column and add them all listed to the features
 matrix_meanCapZ <-  pivot_wider(Data_meanCapZ , names_from = Gene, values_from = mean_capZ)
 matrix_sdCapZ <-  pivot_wider(Data_sdCapZ , names_from = Gene, values_from = sd_capZ)
@@ -3967,11 +3963,6 @@ matrix_sdCapZ <-  pivot_wider(Data_sdCapZ , names_from = Gene, values_from = sd_
 # merge with the Neurological tests
 matrix_meanCapZ <- merge(matrix_meanCapZ, Metadata_NeuroTest, by = c("SampleID", "Timepoint"), all.x = TRUE)
 matrix_sdCapZ <- merge(matrix_sdCapZ, Metadata_NeuroTest, by = c("SampleID", "Timepoint"), all.x = TRUE)
-
-# add the metadata of of Patients
-metadataP <- metadataP %>% select(all_of(c("SampleID", "Sex", "Age"))) 
-matrix_meanCapZ <- merge(matrix_meanCapZ , metadataP, by = "SampleID", all.x = TRUE)
-matrix_sdCapZ <- merge(matrix_sdCapZ , metadataP, by = "SampleID", all.x = TRUE)
 
 # Create output folders
 plot_folder <- "RF_Plots"
