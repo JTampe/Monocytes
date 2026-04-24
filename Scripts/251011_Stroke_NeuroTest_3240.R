@@ -2722,7 +2722,7 @@ for (j in 1:length(unique(data_mean_matched$Gene))) {
 # write.csv(Wilcox_capZ, file = "Wilcox_Results_capZ_unpaired.csv", row.names = FALSE)
 
 
-#*Wilcox for Comparison at individual TPs -------------------------------------
+# *Wilcox for Comparison at individual TPs* -------------------------------------
 plot_save <- "n"
 #### Male vs Female Analysis (Mean ± SEM) -------------------------------------
 folder <- "Mean_SEM_capZ_Sex_Plots"
