@@ -524,8 +524,8 @@ for (i in 9:12) {
         cells_colname,
         "All",
         output_folder,
-        NHISS_End_correlation_FACS,
-        "NHISS_Diff" # Pass NHISS_End as a string
+        NHISS_Diff_correlation_FACS,
+        "NHISS_Diff" # Pass NHISS_Diff as a string
     )
 }
 

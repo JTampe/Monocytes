@@ -5,6 +5,7 @@ plot_save <- "n"
 
 # remove unmatched CTR for ANOVA too 
 data_mean_matched <- dataFINALmean %>% filter(!(Timepoint == "TP0" & !SampleID %in% Matched_TP0_Gene))
+
 # Check if all groups have the same size:
 check_sample_counts(data_mean_matched)
 
