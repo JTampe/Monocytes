@@ -406,7 +406,7 @@ plot_linear_regression <- function(data, cells_colname, group_name, output_folde
 }
 
 
-plot_linear_regression_NHISS <- function(data, cells_colname, group_name, output_folder, result, x_axis_var) {
+plot_linear_regression_NIHSS <- function(data, cells_colname, group_name, output_folder, result, x_axis_var) {
     
     # Fit the initial linear model to identify outliers
     lm_initial <- lm(data[[cells_colname]] ~ data[[x_axis_var]])
@@ -812,28 +812,6 @@ automate_anova_extraction_Category <- function(results_folder, plots_folder, res
             ggsave(filename = file.path(plots_folder, paste(var_name, "_Boxplot_Wilcox.png", sep = "")), 
                    plot = box_plot, width = 7.435, height = 5)
             
-            # # Barplot with SEM
-            # mean_values <- df_test %>%
-            #     group_by(get(timepoint_col), get(color_var)) %>%
-            #     summarise(mean_value = mean(get(var_name), na.rm = TRUE),
-            #               sd_value = sd(get(var_name), na.rm = TRUE),
-            #               n = n(), .groups = "drop") %>%
-            #     mutate(SEM = sd_value / sqrt(n)) %>%
-            #     rename(Timepoint = `get(timepoint_col)`, Group = `get(color_var)`)
-            # 
-            # dodge_position <- position_dodge(width = 0.8)
-            # bar_plot <- ggbarplot(mean_values, x = "Timepoint", y = "mean_value", fill = "Group", 
-            #                       ylab = paste(var_name, "mean (+-SEM) percentage"), 
-            #                       add = "mean_se", width = 0.6, position = dodge_position) +
-            #     scale_fill_manual(values = my_colors) +
-            #     scale_x_discrete(labels = c("TP0" = "Control", "TP1" = "24 hours", 
-            #                                 "TP2" = "3-5 days", "TP3" = "1 month", 
-            #                                 "TP4" = "3 months")) +
-            #     geom_errorbar(aes(ymin = mean_value - SEM, ymax = mean_value + SEM), 
-            #                   width = 0.2, position = dodge_position) +
-            #     theme_minimal()
-            # 
-            # ggsave(filename = file.path(plots_folder, paste(var_name, "_Barplot_Wilcox_SEM.png", sep = "")), plot = bar_plot)
         }
     }
     

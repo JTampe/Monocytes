@@ -1,5 +1,5 @@
 # *Gene Expr. Statistics* ----------------------------------------------------------------------------------------------------
-# As they are non-normal disributed, dependent with similar variance
+# As they could be seen as non-normal disributed, dependent with similar variance
 # Adjust to yes if you want plots to be saved or n if not
 plot_save <- "n"
 
