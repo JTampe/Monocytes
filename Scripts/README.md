@@ -21,9 +21,8 @@ system("Rscript /Users/ju5263ta/Github/Monocytes/Scripts/240905_Controls_MFIregr
 
 Run Script for the Stroke Data directly in R via the terminal:
 ```
-system("Rscript /Users/ju5263ta/Github/Monocytes/Scripts/240920_Stroke_NormAll_imp.R")
+system("Rscript /Users/ju5263ta/Github/Monocytes/Scripts/260520_RunCode.R")
 ```
-
 
 
 All output will be saved in a folder: TODAYS-DATE_Stroke/Controls_Github_Results
