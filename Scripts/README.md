@@ -21,7 +21,7 @@ system("Rscript /Users/ju5263ta/Github/Monocytes/Scripts/240905_Controls_MFIregr
 
 Run Script for the Stroke Data directly in R via the terminal:
 ```
-system("Rscript /Users/ju5263ta/Github/Monocytes/Scripts/260520_RunCode.R")
+system("Rscript /Users/ju5263ta/Github/Monocytes/Scripts/260520_RunStrokeCode.R")
 ```
 
 
